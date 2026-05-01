@@ -2,59 +2,163 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Property Vision</title>
 
 <style>
-body { font-family: Arial; background:#f7f3ec; margin:0; padding:20px; }
-.card { max-width:900px; margin:20px auto; background:#fff; padding:20px; border-radius:10px; }
-input, button { padding:10px; font-size:14px; }
-button { cursor:pointer; }
-.thumb { display:inline-block; margin:5px; border:1px solid #ddd; }
-.thumb img { width:140px; display:block; }
-.status { margin-top:10px; }
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: #0f172a;
+    color: white;
+  }
+
+  h1 {
+    margin-bottom: 10px;
+  }
+
+  .row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+
+  input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+  }
+
+  button {
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: #2563eb;
+    color: white;
+  }
+
+  button:hover {
+    background: #1d4ed8;
+  }
+
+  #status {
+    margin: 10px 0;
+    font-size: 14px;
+    color: #93c5fd;
+  }
+
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 15px;
+  }
+
+  .thumb {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: 0.2s;
+  }
+
+  .thumb:hover {
+    transform: scale(1.02);
+  }
+
+  .selected {
+    border: 3px solid #22c55e;
+  }
+
+  #result {
+    margin-top: 20px;
+    padding: 10px;
+    background: #111827;
+    border-radius: 8px;
+    min-height: 40px;
+  }
 </style>
 </head>
 
 <body>
 
-<div class="card">
-  <h2>Property Vision</h2>
+<h1>Property Vision</h1>
 
-  <input id="listing-url" type="text" placeholder="Paste Rightmove/Zoopla URL" style="width:70%;" />
-  <button onclick="fetchImages()">Extract images</button>
-
-  <div id="status"></div>
-  <div id="grid"></div>
+<div class="row">
+  <input id="urlInput" placeholder="Paste image URL here..." />
+  <button id="extractBtn">Extract</button>
 </div>
 
+<div id="status">Ready</div>
+
+<div id="grid"></div>
+
+<div id="result">No selection yet</div>
+
 <script>
+let selectedImage = null;
 
-/* IMPORTANT: your Cloudflare Worker URL */
-const WORKER_URL = "https://property-vision-api.dylangeorgesmythe.workers.dev";
+const statusEl = document.getElementById("status");
+const gridEl = document.getElementById("grid");
+const resultEl = document.getElementById("result");
+const urlInput = document.getElementById("urlInput");
+const extractBtn = document.getElementById("extractBtn");
 
-/* safe DOM init */
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("App loaded");
-});
-
-/* status helper */
 function setStatus(msg) {
-  document.getElementById("status").textContent = msg;
+  statusEl.textContent = msg;
+  console.log("[STATUS]", msg);
 }
 
-/* MAIN FUNCTION */
+function clearSelection() {
+  document.querySelectorAll(".thumb").forEach(img => {
+    img.classList.remove("selected");
+  });
+  selectedImage = null;
+}
+
+function selectImage(img) {
+  clearSelection();
+  img.classList.add("selected");
+  selectedImage = img.src;
+
+  resultEl.textContent = "Selected image: " + selectedImage;
+  console.log("[SELECT]", selectedImage);
+}
+
+function renderImages(urls) {
+  gridEl.innerHTML = "";
+
+  urls.forEach(url => {
+    const img = document.createElement("img");
+    img.src = url;
+    img.className = "thumb";
+
+    img.addEventListener("click", () => {
+      selectImage(img);
+    });
+
+    gridEl.appendChild(img);
+  });
+
+  setStatus("Loaded " + urls.length + " images");
+}
+
 async function fetchImages() {
-  const url = document.getElementById("listing-url").value.trim();
-  const grid = document.getElementById("grid");
+  const url = urlInput.value.trim();
 
-  if (!url) return alert("Paste a URL");
+  if (!url) {
+    setStatus("Please enter a URL");
+    return;
+  }
 
-  grid.innerHTML = "";
-  setStatus("Fetching images from listing...");
+  setStatus("Fetching images from server...");
 
   try {
-    const res = await fetch(WORKER_URL, {
+    const res = await fetch("https://property-vision-api.dylangeorgesmythe.workers.dev/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -62,34 +166,59 @@ async function fetchImages() {
       body: JSON.stringify({ url })
     });
 
+    if (!res.ok) {
+      throw new Error("Server error: " + res.status);
+    }
+
     const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(data.error || "Worker failed");
+    // expects: { images: [] }
+    if (!data.images || !Array.isArray(data.images)) {
+      throw new Error("Bad response format");
     }
 
-    const images = data.images || [];
+    renderImages(data.images);
 
-    if (!images.length) {
-      setStatus("No images found (site may be blocked)");
-      return;
-    }
-
-    images.forEach(src => {
-      const div = document.createElement("div");
-      div.className = "thumb";
-      div.innerHTML = `<img src="${src}" />`;
-      grid.appendChild(div);
-    });
-
-    setStatus(`Loaded ${images.length} images`);
-
-  } catch (e) {
-    console.error(e);
-    setStatus("Error: " + e.message);
+  } catch (err) {
+    console.error(err);
+    setStatus("Error fetching images: " + err.message);
   }
 }
 
+async function extractFromSelection() {
+  if (!selectedImage) {
+    setStatus("No image selected");
+    return;
+  }
+
+  setStatus("Extracting from selected image...");
+
+  try {
+    const res = await fetch("https://property-vision-api.dylangeorgesmythe.workers.dev/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        image: selectedImage
+      })
+    });
+
+    const data = await res.json();
+
+    resultEl.textContent = data.result || JSON.stringify(data, null, 2);
+    setStatus("Done");
+
+  } catch (err) {
+    console.error(err);
+    setStatus("Extraction failed: " + err.message);
+  }
+}
+
+extractBtn.addEventListener("click", fetchImages);
+
+// initial debug state
+setStatus("Ready - paste URL and click Extract");
 </script>
 
 </body>
