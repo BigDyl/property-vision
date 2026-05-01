@@ -65,29 +65,45 @@ function setStatus(msg) {
    (we will plug real worker next step)
 ========================= */
 async function fetchImages() {
-  const url = document.getElementById('listing-url').value;
+  const url = document.getElementById('listing-url').value.trim();
   const grid = document.getElementById('url-grid');
 
-  if (!url) return alert('Paste a URL');
+  if (!url) return alert('Paste a listing URL');
 
   grid.innerHTML = '';
-  setStatus('Fetching (placeholder mode)...');
+  setStatus('Fetching images from server...');
 
-  // TEMP MOCK so UI works first
-  const fakeImages = [
-    'https://via.placeholder.com/400x300',
-    'https://via.placeholder.com/400x301',
-    'https://via.placeholder.com/400x302'
-  ];
+  try {
+    const res = await fetch('https://property-vision-api.dylangeorgesmythe.workers.dev/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
 
-  fakeImages.forEach(src => {
-    const div = document.createElement('div');
-    div.className = 'thumb';
-    div.innerHTML = `<img src="${src}" width="120">`;
-    grid.appendChild(div);
-  });
+    const data = await res.json();
 
-  setStatus('Loaded placeholder images');
+    if (!res.ok) throw new Error(data.error || 'Failed request');
+
+    const images = data.images || [];
+
+    if (!images.length) {
+      setStatus('No images found');
+      return;
+    }
+
+    images.forEach(src => {
+      const div = document.createElement('div');
+      div.className = 'thumb';
+      div.innerHTML = `<img src="${src}" width="120">`;
+      grid.appendChild(div);
+    });
+
+    setStatus(`Loaded ${images.length} images`);
+
+  } catch (e) {
+    console.error(e);
+    setStatus('Error fetching images: ' + e.message);
+  }
 }
 </script>
 
