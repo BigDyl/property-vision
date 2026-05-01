@@ -527,7 +527,7 @@
       <div class="api-bar-title">fal.ai API key required</div>
       <div class="api-bar-note">Stored in your browser only. Free to get at <a href="https://fal.ai" target="_blank">fal.ai</a> — ~£0.05–0.10 per render.</div>
     </div>
-    <input class="api-key-input" type="password" id="api-key" placeholder="fal_..." oninput="saveKey()" />
+    <input class="api-key-input" type="password" id="api-key" placeholder="Paste your fal.ai key…" oninput="saveKey()" />
   </div>
 
   <!-- ─── STEP 1 ─── -->
@@ -1052,13 +1052,15 @@ function blobToDataUrl(blob) {
 // FAL.AI QUEUE API
 // ═══════════════════════════════════════════════
 async function callFal(imageUrl, prompt, key) {
-  const MODEL = 'fal-ai/flux-pro/kontext';
-  const BASE  = `https://queue.fal.run/${MODEL}`;
+  const MODEL      = 'fal-ai/flux-pro/kontext';
+  const SUBMIT_URL = `https://queue.fal.run/${MODEL}`;
+  const HEADERS    = { 'Authorization': `Key ${key}`, 'Content-Type': 'application/json' };
 
   // 1. Submit job
-  const sub = await fetch(BASE, {
+  console.log('[fal] Submitting to:', SUBMIT_URL);
+  const sub = await fetch(SUBMIT_URL, {
     method: 'POST',
-    headers: { 'Authorization': `Key ${key}`, 'Content-Type': 'application/json' },
+    headers: HEADERS,
     body: JSON.stringify({
       image_url:           imageUrl,
       prompt:              prompt,
@@ -1069,50 +1071,73 @@ async function callFal(imageUrl, prompt, key) {
     }),
   });
 
+  const subText = await sub.text();
+  console.log('[fal] Submit response — HTTP', sub.status, ':', subText);
+
   if (!sub.ok) {
-    const err = await sub.json().catch(() => ({}));
-    throw new Error(err.detail || err.message || `HTTP ${sub.status} — check your API key.`);
+    let detail = subText;
+    try { const j = JSON.parse(subText); detail = j.detail || j.message || j.error || subText; } catch(e) {}
+    throw new Error(`fal.ai rejected the request (HTTP ${sub.status}): ${detail}`);
   }
 
-  const { request_id } = await sub.json();
-  if (!request_id) throw new Error('No request ID returned from fal.ai.');
+  let submitData;
+  try { submitData = JSON.parse(subText); } catch(e) { throw new Error('fal.ai returned non-JSON: ' + subText); }
 
-  // 2. Poll for completion
-  const STEP_LABELS = ['Analysing space', 'Applying style', 'Rendering details', 'Almost there', 'Finishing touches'];
+  const request_id = submitData.request_id;
+  if (!request_id) throw new Error('No request_id in response: ' + subText);
+  console.log('[fal] Job queued, request_id:', request_id);
+
+  // 2. Poll /requests/{id}/status  ← this is the correct status endpoint
+  //    Then GET /requests/{id}     ← to fetch the completed result
+  const STATUS_URL = `${SUBMIT_URL}/requests/${request_id}/status`;
+  const RESULT_URL = `${SUBMIT_URL}/requests/${request_id}`;
+  const STEPS      = ['Queued…', 'Analysing space', 'Applying style', 'Rendering', 'Finishing'];
   let attempts = 0;
 
   while (attempts < 80) {
-    await sleep(2500);
+    await sleep(3000);
     attempts++;
 
-    // Update loading indicator
-    const stepIdx = Math.min(Math.floor(attempts / 5), STEP_LABELS.length - 1);
-    document.querySelectorAll('.loading-step').forEach((el, i) => {
-      el.classList.toggle('active', i === stepIdx);
-    });
+    const stepIdx = Math.min(Math.floor(attempts / 5), STEPS.length - 1);
+    document.querySelectorAll('.loading-step').forEach((el, i) => el.classList.toggle('active', i === stepIdx));
 
-    const poll = await fetch(`${BASE}/requests/${request_id}`, {
-      headers: { 'Authorization': `Key ${key}` }
-    }).catch(() => null);
+    let statusData;
+    try {
+      const poll = await fetch(STATUS_URL, { headers: HEADERS });
+      const pollText = await poll.text();
+      console.log(`[fal] Poll ${attempts} — HTTP ${poll.status}:`, pollText);
+      if (!poll.ok) continue;
+      statusData = JSON.parse(pollText);
+    } catch (e) {
+      console.warn('[fal] Poll error:', e.message);
+      continue;
+    }
 
-    if (!poll || !poll.ok) continue;
-    const res = await poll.json();
+    // Show queue position if available
+    if (statusData.queue_position != null) {
+      document.getElementById('loading-sub').textContent = `Position in queue: ${statusData.queue_position}`;
+    }
 
-    if (res.status === 'COMPLETED') {
-      const o = res.output;
-      const img = o?.images?.[0]?.url
-        || o?.image?.url
-        || (typeof o?.images?.[0] === 'string' ? o.images[0] : null);
-      if (!img) throw new Error('API returned no image URL.');
+    if (statusData.status === 'COMPLETED') {
+      console.log('[fal] COMPLETED — fetching result from:', RESULT_URL);
+      const resultResp = await fetch(RESULT_URL, { headers: HEADERS });
+      const resultText = await resultResp.text();
+      console.log('[fal] Result payload:', resultText);
+      const result = JSON.parse(resultText);
+      const img = result?.images?.[0]?.url
+        || result?.output?.images?.[0]?.url
+        || result?.image?.url
+        || (typeof result?.images?.[0] === 'string' ? result.images[0] : null);
+      if (!img) throw new Error('Generation finished but no image URL found. Full response: ' + resultText);
       return img;
     }
 
-    if (res.status === 'FAILED') {
-      throw new Error(res.error || 'fal.ai generation failed. Check your API key and try again.');
+    if (statusData.status === 'FAILED') {
+      throw new Error('fal.ai generation failed: ' + (statusData.error || JSON.stringify(statusData)));
     }
   }
 
-  throw new Error('Timed out waiting for result. Please try again.');
+  throw new Error('Timed out after 4 minutes. fal.ai may be under load — please try again.');
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
