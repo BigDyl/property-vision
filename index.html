@@ -14,9 +14,17 @@ function getKey() {
     || localStorage.getItem('pv_key') || '';
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('api-key').value = localStorage.getItem('pv_key') || '';
-});
+function initApp() {
+  const apiKeyInput = document.getElementById('api-key');
+  if (!apiKeyInput) return;
+
+  apiKeyInput.value = localStorage.getItem('pv_key') || '';
+
+  // bind events safely after DOM exists
+  apiKeyInput.addEventListener('input', saveKey);
+}
+
+document.addEventListener('DOMContentLoaded', initApp);
 
 // ===================== TABS =====================
 function switchTab(t) {
