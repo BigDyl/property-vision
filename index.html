@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Property Vision — See what this house could be</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -305,7 +306,42 @@
     .thumb.selected .tick { display: flex; }
 
     /* ─── STATUS ─────────────────────────────────────── */
-    .status { padding: 10px 14px; border-radius: 7px; font-size: 13px; margin-top: 10px; display: none; }
+    .thumb .num {
+      position: absolute;
+      top: 4px; left: 4px;
+      width: 20px; height: 20px;
+      background: var(--teal);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .thumb.selected .num { display: flex; }
+    .thumb.selected .tick { display: none; }
+    .selection-count {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--teal);
+      margin-top: 10px;
+      display: none;
+    }
+    .selection-count.show { display: block; }
+    .selection-max { color: var(--burnt); }
+
+    /* results list */
+    .result-item { margin-bottom: 24px; }
+    .result-item:last-child { margin-bottom: 0; }
+    .result-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
     .status.show { display: block; }
     .status.info { background: #edf5f7; color: var(--teal); }
     .status.ok   { background: #edf7ef; color: #267a40; }
@@ -530,6 +566,9 @@
     <input class="api-key-input" type="password" id="api-key" placeholder="Paste your fal.ai key…" oninput="saveKey()" />
   </div>
 
+  <!-- ─── FORM WRAP (hidden during generation) ─── -->
+  <div id="form-wrap">
+
   <!-- ─── STEP 1 ─── -->
   <div class="card">
     <div class="step-badge"><span class="step-num">1</span> Get images</div>
@@ -552,6 +591,7 @@
       <button class="debug-toggle" id="debug-toggle" onclick="toggleDebug()">Show debug log</button>
       <div class="debug-panel" id="debug-panel"></div>
       <div class="img-grid" id="url-grid"></div>
+      <div class="selection-count" id="sel-count"></div>
     </div>
 
     <!-- Upload tab -->
@@ -560,9 +600,10 @@
         <input type="file" id="file-input" accept="image/*" multiple onchange="handleUpload(this)" />
         <div class="drop-icon">📷</div>
         <div class="drop-text">Drop photos here or click to browse</div>
-        <div class="drop-hint">JPEG or PNG — one or more room photos</div>
+        <div class="drop-hint">JPEG or PNG — select up to 5 rooms</div>
       </div>
       <div class="img-grid" id="upload-grid"></div>
+      <div class="selection-count" id="upload-sel-count"></div>
     </div>
   </div>
 
@@ -582,6 +623,23 @@
         <option value="artdeco">Art Deco</option>
         <option value="japandi">Japandi</option>
         <option value="victorian">Victorian Restored</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Room type <span style="font-weight:400;text-transform:none;letter-spacing:0">— helps the AI stay faithful to the space</span></label>
+      <select id="room-type">
+        <option value="">— Select room type —</option>
+        <option value="living room">Living room</option>
+        <option value="kitchen">Kitchen</option>
+        <option value="kitchen-diner">Kitchen / diner</option>
+        <option value="dining room">Dining room</option>
+        <option value="bedroom">Bedroom</option>
+        <option value="bathroom">Bathroom</option>
+        <option value="en-suite">En-suite bathroom</option>
+        <option value="hallway">Hallway / entrance</option>
+        <option value="home office">Home office / study</option>
+        <option value="exterior">Exterior / garden</option>
+        <option value="mixed">Mixed / multiple rooms</option>
       </select>
     </div>
     <div id="prompt-wrap" style="display:none">
@@ -609,21 +667,23 @@
   <!-- ─── GENERATE ─── -->
   <div class="card" style="padding:20px 26px; text-align:center;">
     <button class="btn btn-primary btn-full" id="gen-btn" onclick="generate()">
-      ✨ &nbsp;Visualise renovation
+      ✨ &nbsp;See the potential
     </button>
   </div>
+
+  </div><!-- /form-wrap -->
 
   <!-- ─── LOADING ─── -->
   <div class="card loading" id="loading">
     <div class="spinner"></div>
-    <div class="loading-title">Generating your renovation…</div>
-    <div class="loading-sub" id="loading-sub">Takes 20–40 seconds. Good things take time.</div>
+    <div class="loading-title" id="loading-title">Imagining the potential…</div>
+    <div class="loading-sub" id="loading-sub">Takes 20–40 seconds per room.</div>
     <div class="loading-steps">
-      <span class="loading-step active" id="ls-0">Sending to AI</span>
+      <span class="loading-step active" id="ls-0">Queued</span>
       <span class="loading-step" id="ls-1">Analysing space</span>
       <span class="loading-step" id="ls-2">Applying style</span>
       <span class="loading-step" id="ls-3">Rendering</span>
-      <span class="loading-step" id="ls-4">Finishing touches</span>
+      <span class="loading-step" id="ls-4">Finishing</span>
     </div>
   </div>
 
@@ -631,30 +691,19 @@
   <div class="card results" id="results">
     <div class="results-header">
       <div>
-        <div class="results-kicker">✓ Ready</div>
-        <div class="results-title">Before &amp; After</div>
+        <div class="results-kicker">✓ Done</div>
+        <div class="results-title" id="results-title">Before &amp; After</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="resetAll()">Try another</button>
+      <button class="btn btn-ghost btn-sm" onclick="resetAll()">Start again</button>
     </div>
-
-    <div class="compare-wrap" id="compare">
-      <img class="cmp-before" id="img-before" src="" alt="Before" />
-      <div class="cmp-after-wrap" id="after-wrap">
-        <img class="cmp-after" id="img-after" src="" alt="After" />
-      </div>
-      <div class="cmp-line" id="cmp-line"></div>
-      <div class="cmp-handle" id="cmp-handle">↔</div>
-      <span class="cmp-badge cmp-badge-before">Before</span>
-      <span class="cmp-badge cmp-badge-after">After</span>
-      <input type="range" min="0" max="100" value="50" class="cmp-range" id="cmp-range" oninput="slide(this.value)" />
-    </div>
-
+    <!-- dynamic before/afters injected here -->
+    <div id="results-list"></div>
     <div class="share-row">
       <button class="share-btn share-x"  onclick="shareX()">𝕏 &nbsp;Share on X</button>
       <button class="share-btn share-wa" onclick="shareWA()">💬 &nbsp;WhatsApp</button>
-      <button class="share-btn share-dl" onclick="dlAfter()">⬇ &nbsp;Download render</button>
+      <button class="share-btn share-dl" onclick="dlAfter()">⬇ &nbsp;Download last render</button>
     </div>
-    <p class="disclaimer">AI renders are illustrative only — not architectural drawings. Actual results will vary. Always consult a professional before making renovation decisions.</p>
+    <p class="disclaimer">AI renders are illustrative only — not architectural drawings. Actual results will vary.</p>
   </div>
 
 </main>
@@ -663,7 +712,54 @@
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-const S = { image: null, budget: null, after: null };
+const S = { images: [], budget: null, lastAfterUrl: null };
+const MAX_SEL = 5;
+
+// ═══════════════════════════════════════════════
+// THUMBNAILS — multi-select up to MAX_SEL
+// ═══════════════════════════════════════════════
+function addThumb(grid, url, src, autoSelect = false) {
+  const div = document.createElement('div');
+  div.className = 'thumb';
+  div.innerHTML = `<img src="${url}" alt="" onerror="this.closest('.thumb').remove()" />
+    <div class="tick">✓</div><div class="num"></div>`;
+  div.addEventListener('click', () => toggleThumb(div, url, src));
+  grid.appendChild(div);
+  if (autoSelect) toggleThumb(div, url, src);
+}
+
+function toggleThumb(div, url, src) {
+  if (div.classList.contains('selected')) {
+    // Deselect
+    S.images = S.images.filter(u => u !== url);
+    div.classList.remove('selected');
+  } else {
+    if (S.images.length >= MAX_SEL) {
+      div.style.animation = 'shake 0.3s';
+      setTimeout(() => div.style.animation = '', 300);
+      return;
+    }
+    S.images.push(url);
+    div.classList.add('selected');
+  }
+  // Renumber all selected thumbs in both grids
+  let n = 0;
+  document.querySelectorAll('.thumb.selected').forEach(t => {
+    n++;
+    t.querySelector('.num').textContent = n;
+  });
+  updateCounter(src);
+}
+
+function updateCounter(src) {
+  const countEl = document.getElementById(src === 'url' ? 'sel-count' : 'upload-sel-count');
+  if (!countEl) return;
+  const n = S.images.length;
+  if (n === 0) { countEl.classList.remove('show'); return; }
+  const maxMsg = n >= MAX_SEL ? ` <span class="selection-max">(max reached)</span>` : '';
+  countEl.innerHTML = `${n} of ${MAX_SEL} rooms selected${maxMsg} — click a selected image to deselect`;
+  countEl.classList.add('show');
+}
 
 // ═══════════════════════════════════════════════
 // API KEY
@@ -807,82 +903,90 @@ async function fetchImages() {
     return;
   }
 
-  setStatus(st, `✓ Found ${imgs.length} image${imgs.length > 1 ? 's' : ''} via ${usedProxy} — click one to select it.`, 'ok');
-  dbg(`Showing first ${Math.min(imgs.length, 14)} images`, 'debug-ok');
-  imgs.slice(0, 14).forEach(u => {
+  setStatus(st, `✓ Found ${imgs.length} property image${imgs.length > 1 ? 's' : ''} — select up to ${MAX_SEL} rooms.`, 'ok');
+  dbg(`Showing first ${Math.min(imgs.length, 18)} images`, 'debug-ok');
+  imgs.slice(0, 18).forEach(u => {
     dbg(`  ${u}`);
     addThumb(grid, u, 'url');
   });
 }
 
 function extractImgUrls(html) {
-  const found = new Set();
+  const found  = new Set();
+  const exclude = new Set(); // floorplan URLs to exclude
 
-  // ── Rightmove __NEXT_DATA__ (best: full image array)
+  // ── Rightmove __NEXT_DATA__ — most reliable source
   const nd = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
   if (nd) {
-    dbg('  __NEXT_DATA__ script tag found');
+    dbg('  __NEXT_DATA__ found');
     try {
       const data = JSON.parse(nd[1]);
-      // Try multiple known paths in their data structure
-      const imgArrays = [
-        data?.props?.pageProps?.propertyData?.images,
-        data?.props?.pageProps?.listingData?.images,
-        data?.props?.pageProps?.property?.images,
-      ].filter(Boolean);
+      const pd   = data?.props?.pageProps?.propertyData
+                || data?.props?.pageProps?.listingData
+                || data?.props?.pageProps?.property;
 
-      let rmCount = 0;
-      for (const arr of imgArrays) {
-        arr.forEach(i => {
-          let u = i.srcUrl || i.url || i.src || i.imageUrl || '';
-          if (!u && typeof i === 'string') u = i;
-          u = u.replace('{size}', 'max_800x600').replace('_max_476x317', '_max_800x600');
-          if (u.startsWith('http')) { found.add(u.split('?')[0]); rmCount++; }
+      if (pd) {
+        // Collect floorplan URLs first so we can exclude them
+        const fps = pd.floorplans || pd.floorPlanImages || [];
+        fps.forEach(f => {
+          const u = f.srcUrl || f.url || f.src || '';
+          if (u) exclude.add(u.split('?')[0]);
         });
+        dbg(`  Excluding ${exclude.size} floorplan URL(s)`);
+
+        // Now collect property photos
+        const imgs = pd.images || pd.photos || [];
+        let count = 0;
+        imgs.forEach(i => {
+          let u = i.srcUrl || i.url || i.src || i.imageUrl || '';
+          if (typeof i === 'string') u = i;
+          // Use a large size variant
+          u = u.replace('{size}', 'max_800x600')
+               .replace('_max_476x317', '_max_800x600')
+               .replace('_max_135x100', '_max_800x600');
+          const clean = u.split('?')[0];
+          if (clean.startsWith('http') && !exclude.has(clean)) {
+            found.add(clean);
+            count++;
+          }
+        });
+        dbg(`  Property photos from __NEXT_DATA__: ${count}`, count ? 'debug-ok' : 'debug-warn');
       }
-      dbg(`  Rightmove __NEXT_DATA__: ${rmCount} images`, rmCount ? 'debug-ok' : 'debug-warn');
     } catch (e) {
-      dbg(`  __NEXT_DATA__ parse failed: ${e.message}`, 'debug-err');
+      dbg(`  __NEXT_DATA__ parse error: ${e.message}`, 'debug-err');
     }
   } else {
-    dbg('  __NEXT_DATA__ not found — page may be rendered differently', 'debug-warn');
+    dbg('  __NEXT_DATA__ not found', 'debug-warn');
   }
 
-  // ── og:image (works on most sites)
-  const ogBefore = found.size;
-  for (const m of html.matchAll(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/g)) found.add(m[1]);
-  for (const m of html.matchAll(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/g)) found.add(m[1]);
-  dbg(`  og:image tags: ${found.size - ogBefore} new`, (found.size - ogBefore) ? 'debug-ok' : '');
-
-  // ── Rightmove CDN URLs anywhere in HTML
-  const rmBefore = found.size;
-  for (const m of html.matchAll(/https:\/\/media\.rightmove\.co\.uk\/[^\s"'<>]+\.jpe?g/gi))
-    found.add(m[0].split('?')[0]);
-  dbg(`  Rightmove CDN pattern: ${found.size - rmBefore} new`, (found.size - rmBefore) ? 'debug-ok' : '');
-
-  // ── Zoopla CDN
-  const zpBefore = found.size;
-  for (const m of html.matchAll(/https:\/\/lid\.zoocdn\.com\/[^\s"'<>]+\.jpe?g/gi))
-    found.add(m[0].split('?')[0]);
-  for (const m of html.matchAll(/https:\/\/[^\s"'<>]*zoocdn[^\s"'<>]+\.jpe?g/gi))
-    found.add(m[0].split('?')[0]);
-  dbg(`  Zoopla CDN pattern: ${found.size - zpBefore} new`, (found.size - zpBefore) ? 'debug-ok' : '');
-
-  // ── JSON-LD
-  const ldBefore = found.size;
-  for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/g)) {
-    try {
-      const ld = JSON.parse(m[1]);
-      const imgs = Array.isArray(ld.image) ? ld.image : [ld.image];
-      imgs.forEach(i => {
-        const u = typeof i === 'string' ? i : i?.url;
-        if (u?.startsWith('http')) found.add(u);
-      });
-    } catch (e) {}
+  // ── Zoopla JSON-LD (if no images yet)
+  if (found.size === 0) {
+    for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/g)) {
+      try {
+        const ld = JSON.parse(m[1]);
+        const imgs = Array.isArray(ld.image) ? ld.image : [ld.image];
+        imgs.forEach(i => {
+          const u = typeof i === 'string' ? i : i?.url;
+          if (u?.startsWith('http')) found.add(u);
+        });
+      } catch (e) {}
+    }
+    dbg(`  JSON-LD fallback: ${found.size} images`, found.size ? 'debug-ok' : '');
   }
-  dbg(`  JSON-LD: ${found.size - ldBefore} new`, (found.size - ldBefore) ? 'debug-ok' : '');
 
-  return [...found].filter(u => u.startsWith('http'));
+  // ── og:image as last resort
+  if (found.size === 0) {
+    for (const m of html.matchAll(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/g)) found.add(m[1]);
+    for (const m of html.matchAll(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/g)) found.add(m[1]);
+    dbg(`  og:image fallback: ${found.size} images`, found.size ? 'debug-ok' : '');
+  }
+
+  // Final filter: must be http, not a floorplan by URL keyword
+  return [...found].filter(u =>
+    u.startsWith('http') &&
+    !exclude.has(u) &&
+    !/floorplan|floor.plan|floor_plan|map\.png|street.?view/i.test(u)
+  );
 }
 
 // ═══════════════════════════════════════════════
@@ -893,7 +997,7 @@ function handleUpload(input) {
   grid.innerHTML = '';
   [...input.files].forEach((file, i) => {
     const reader = new FileReader();
-    reader.onload = e => addThumb(grid, e.target.result, 'upload', i === 0);
+    reader.onload = e => addThumb(grid, e.target.result, 'upload', i < 1);
     reader.readAsDataURL(file);
   });
 }
@@ -909,23 +1013,6 @@ dz.addEventListener('drop', e => {
   fi.files = e.dataTransfer.files;
   handleUpload(fi);
 });
-
-// ═══════════════════════════════════════════════
-// THUMBNAILS
-// ═══════════════════════════════════════════════
-function addThumb(grid, url, src, autoSelect = false) {
-  const div = document.createElement('div');
-  div.className = 'thumb';
-  div.innerHTML = `<img src="${url}" alt="" onerror="this.closest('.thumb').remove()" /><div class="tick">✓</div>`;
-  div.addEventListener('click', () => {
-    const gridId = src === 'url' ? 'url-grid' : 'upload-grid';
-    document.querySelectorAll(`#${gridId} .thumb`).forEach(t => t.classList.remove('selected'));
-    div.classList.add('selected');
-    S.image = url;
-  });
-  grid.appendChild(div);
-  if (autoSelect) { div.classList.add('selected'); S.image = url; }
-}
 
 // ═══════════════════════════════════════════════
 // STYLE PROMPTS
@@ -964,27 +1051,22 @@ const BUDGET_PROMPTS = {
 };
 
 // ─── HIDDEN SYSTEM CONSTRAINTS ──────────────────────────────────
-// These are always injected into the final prompt — never shown to the user.
-// Edit this object to globally constrain every render the AI produces.
 const SYSTEM_CONSTRAINTS = [
-  // Structure & architecture
-  'Do not make any structural changes to the room unless the user explicitly requests them — keep all walls, windows, doors, and ceiling height exactly as they appear in the original photo.',
-  // Layout
-  'You may rearrange furniture and soft furnishings within the existing floor plan to improve the flow and feel of the space.',
-  // Realism
-  'The render must be photorealistic interior photography — not a sketch, illustration, or render. It should look like a real photograph of the finished room.',
-  // Perspective
+  'CRITICAL: Do NOT change the position, size, or shape of any windows or doors. They must remain exactly where they are in the original photo.',
+  'CRITICAL: Do NOT change the room type. If this is a living room, keep it as a living room. If it is a kitchen, keep all kitchen appliances and fittings in place. Never place kitchen elements in a non-kitchen space or vice versa.',
+  'Do NOT make any structural changes — walls, ceiling height, and room footprint must stay identical to the original photo.',
+  'You may update furniture, finishes, colours, textiles, and light fittings. You may rearrange furniture within the existing space.',
   'Maintain the exact same camera angle, perspective, and field of view as the original photo.',
-  // Scale
-  'Preserve the proportions and scale of the room accurately. Do not make the room appear larger or smaller than it is.',
-  // People & branding
-  'Do not include any people, pets, brand logos, or product labels in the render.',
+  'Preserve the real proportions and scale of the room. Do not make the room appear larger or smaller.',
+  'The result must look like a real lived-in home — not a staged showroom or CGI render. Include natural imperfections, warm lighting, and the feel of a space someone actually lives in.',
+  'Photorealistic interior photography only. Not a sketch, illustration, watercolour, or 3D render.',
+  'Do not include people, pets, brand logos, or visible product labels.',
 ].join(' ');
 
-// Returns the complete prompt sent to the model — style + budget + hidden constraints
-function buildPrompt(stylePrompt, budget) {
-  const budgetContext = budget ? `Budget context: ${BUDGET_PROMPTS[budget]}` : '';
-  return `${stylePrompt} ${budgetContext} TECHNICAL REQUIREMENTS: ${SYSTEM_CONSTRAINTS}`.trim();
+function buildPrompt(stylePrompt, budget, roomType) {
+  const budgetCtx  = budget   ? `Budget: ${BUDGET_PROMPTS[budget]}` : '';
+  const roomCtx    = roomType ? `The room in this image is a ${roomType}. All transformations must be appropriate for a ${roomType} and must not change it into a different room type.` : '';
+  return `${stylePrompt} ${budgetCtx} ${roomCtx} HARD RULES: ${SYSTEM_CONSTRAINTS}`.trim();
 }
 
 function onStyleChange() {
@@ -1001,29 +1083,49 @@ function setBudget(el, v) {
 }
 
 // ═══════════════════════════════════════════════
-// GENERATE
+// GENERATE — loops through all selected images
 // ═══════════════════════════════════════════════
 async function generate() {
-  if (!getKey())    return alert('Please enter your fal.ai API key first.');
-  if (!S.image)     return alert('Please select or upload an image first (Step 1).');
-  if (!document.getElementById('style').value) return alert('Please choose a renovation style (Step 2).');
-  if (!S.budget)    return alert('Please select a renovation budget (Step 3).');
+  if (!getKey())         return alert('Please enter your fal.ai API key first.');
+  if (!S.images.length)  return alert('Please select at least one image (Step 1).');
+  if (!document.getElementById('style').value) return alert('Please choose a style (Step 2).');
+  if (!S.budget)         return alert('Please select a renovation budget (Step 3).');
 
   const stylePrompt = document.getElementById('prompt').value.trim();
-  const fullPrompt  = buildPrompt(stylePrompt, S.budget);
+  const roomType    = document.getElementById('room-type').value;
+  const fullPrompt  = buildPrompt(stylePrompt, S.budget, roomType);
+  const total       = S.images.length;
 
+  // Hide form, show loading
+  document.getElementById('form-wrap').style.display = 'none';
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('results-list').innerHTML = '';
   setLoading(true);
 
-  try {
-    const imageUrl = await prepareImage(S.image);
-    const result   = await callFal(imageUrl, fullPrompt, getKey());
-    S.after = result;
-    showResults(S.image, result);
-  } catch (e) {
-    setLoading(false);
-    alert(`Generation failed: ${e.message}\n\nCheck your API key and try again.`);
-    console.error(e);
+  const pairs = [];
+
+  for (let i = 0; i < total; i++) {
+    const imgUrl = S.images[i];
+    document.getElementById('loading-title').textContent =
+      total > 1 ? `Imagining room ${i + 1} of ${total}…` : 'Imagining the potential…';
+    document.getElementById('loading-sub').textContent = 'Takes 20–40 seconds per room.';
+    document.querySelectorAll('.loading-step').forEach((el, j) => el.classList.toggle('active', j === 0));
+
+    try {
+      const prepared = await prepareImage(imgUrl);
+      const afterUrl = await callFal(prepared, fullPrompt, getKey());
+      S.lastAfterUrl = afterUrl;
+      pairs.push({ before: imgUrl, after: afterUrl, n: i + 1 });
+      // Show partial results immediately
+      showResults(pairs, total);
+    } catch (e) {
+      console.error(`[gen] Room ${i + 1} failed:`, e);
+      pairs.push({ before: imgUrl, after: null, error: e.message, n: i + 1 });
+      showResults(pairs, total);
+    }
   }
+
+  setLoading(false);
 }
 
 // Convert any image source to something fal.ai can use
@@ -1115,41 +1217,79 @@ async function callFal(imageUrl, prompt, key) {
 }
 
 // ═══════════════════════════════════════════════
-// RESULTS & SLIDER
+// RESULTS — multi-image
 // ═══════════════════════════════════════════════
-function showResults(before, after) {
-  document.getElementById('img-before').src = before;
-  document.getElementById('img-after').src  = after;
-  slide(50);
-  document.getElementById('cmp-range').value = 50;
+function showResults(pairs, total) {
+  const list = document.getElementById('results-list');
+  list.innerHTML = '';
+
+  pairs.forEach((p, idx) => {
+    const item = document.createElement('div');
+    item.className = 'result-item';
+
+    if (p.error) {
+      item.innerHTML = `<div class="result-label">Room ${p.n}</div>
+        <div class="status err show">⚠️ Failed: ${escHtml(p.error)}</div>`;
+    } else {
+      const id = `cmp-${idx}`;
+      item.innerHTML = `
+        ${total > 1 ? `<div class="result-label">Room ${p.n}</div>` : ''}
+        <div class="compare-wrap" id="${id}">
+          <img class="cmp-before" src="${p.before}" alt="Before" />
+          <div class="cmp-after-wrap" id="${id}-aw" style="clip-path:inset(0 50% 0 0)">
+            <img class="cmp-after" src="${p.after}" alt="After" />
+          </div>
+          <div class="cmp-line" style="left:50%"></div>
+          <div class="cmp-handle" style="left:50%">↔</div>
+          <span class="cmp-badge cmp-badge-before">Before</span>
+          <span class="cmp-badge cmp-badge-after">After</span>
+          <input type="range" min="0" max="100" value="50" class="cmp-range"
+            oninput="slideItem('${id}',this.value)" />
+        </div>`;
+    }
+    list.appendChild(item);
+  });
+
+  const done   = pairs.filter(p => !p.error).length;
+  const failed = pairs.filter(p => p.error).length;
+  const label  = total > 1
+    ? `${done} of ${total} rooms rendered${failed ? ` (${failed} failed)` : ''}`
+    : 'Before & After';
+  document.getElementById('results-title').textContent = label;
+
   setLoading(false);
   const el = document.getElementById('results');
   el.classList.add('show');
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function slide(v) {
+function slideItem(id, v) {
   const pct = Number(v);
-  document.getElementById('after-wrap').style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
-  document.getElementById('cmp-line').style.left   = pct + '%';
-  document.getElementById('cmp-handle').style.left = pct + '%';
+  document.getElementById(`${id}-aw`).style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
+  const wrap = document.getElementById(id);
+  wrap.querySelector('.cmp-line').style.left   = pct + '%';
+  wrap.querySelector('.cmp-handle').style.left = pct + '%';
 }
+
+// Keep legacy slide() for compatibility
+function slide(v) { slideItem('cmp-0', v); }
 
 // ═══════════════════════════════════════════════
 // SHARING
 // ═══════════════════════════════════════════════
 function shareX() {
-  const text = encodeURIComponent('Used AI to visualise what this property could look like renovated 🏠✨ — try Property Vision:');
+  const text = encodeURIComponent('Used AI to see what this property could look like 🏠✨ — try Property Vision:');
   window.open(`https://x.com/intent/tweet?text=${text}`, '_blank');
 }
 function shareWA() {
-  const text = encodeURIComponent('See what this property could look like after renovation 🏠✨');
+  const text = encodeURIComponent('See what this property could look like 🏠✨');
   window.open(`https://wa.me/?text=${text}`, '_blank');
 }
 async function dlAfter() {
-  if (!S.after) return;
+  const url = S.lastAfterUrl;
+  if (!url) return;
   try {
-    const r = await fetch(S.after);
+    const r = await fetch(url);
     const blob = await r.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1157,9 +1297,7 @@ async function dlAfter() {
     document.body.appendChild(a);
     a.click();
     a.remove();
-  } catch {
-    window.open(S.after, '_blank');
-  }
+  } catch { window.open(url, '_blank'); }
 }
 
 // ═══════════════════════════════════════════════
@@ -1171,21 +1309,26 @@ function setStatus(el, msg, type) {
 }
 function setLoading(on) {
   document.getElementById('loading').classList.toggle('show', on);
-  document.getElementById('gen-btn').disabled = on;
-  if (on) {
-    document.querySelectorAll('.loading-step').forEach((el, i) => el.classList.toggle('active', i === 0));
-  }
+  if (on) document.querySelectorAll('.loading-step').forEach((el, i) => el.classList.toggle('active', i === 0));
 }
 function resetAll() {
   document.getElementById('results').classList.remove('show');
+  document.getElementById('results-list').innerHTML = '';
   document.getElementById('listing-url').value = '';
   document.getElementById('url-grid').innerHTML = '';
   document.getElementById('upload-grid').innerHTML = '';
+  const sc = document.getElementById('sel-count');
+  const uc = document.getElementById('upload-sel-count');
+  if (sc) sc.classList.remove('show');
+  if (uc) uc.classList.remove('show');
   document.getElementById('style').value = '';
+  document.getElementById('room-type').value = '';
   document.getElementById('prompt-wrap').style.display = 'none';
   document.getElementById('budget-desc').textContent = '';
   document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-  Object.assign(S, { image: null, budget: null, after: null });
+  document.getElementById('form-wrap').style.display = 'block';
+  document.getElementById('gen-btn').disabled = false;
+  S.images = []; S.budget = null; S.lastAfterUrl = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 </script>
