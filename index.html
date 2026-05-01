@@ -1,169 +1,1166 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="utf-8">
-<title>Property Vision</title>
-
-<style>
-body {
-  font-family: Arial;
-  background: #0f172a;
-  color: white;
-  padding: 20px;
-}
-
-.row {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-input, select {
-  padding: 10px;
-  border-radius: 6px;
-  border: none;
-}
-
-button {
-  padding: 10px 14px;
-  border-radius: 6px;
-  border: none;
-  background: #2563eb;
-  color: white;
-  cursor: pointer;
-}
-
-#grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-top: 15px;
-}
-
-img {
-  width: 100%;
-  height: 180px;
-  object-fit: cover;
-  border-radius: 8px;
-  cursor: pointer;
-  border: 3px solid transparent;
-}
-
-.selected {
-  border: 3px solid #22c55e;
-}
-
-#result {
-  margin-top: 20px;
-  background: #111827;
-  padding: 10px;
-  border-radius: 8px;
-}
-</style>
-</head>
-
-<body>
-
-<h1>Property Vision</h1>
-
-<div class="row">
-  <input id="url" placeholder="Paste listing URL" />
-  <button onclick="loadImages()">Load Images</button>
-</div>
-
-<div class="row">
-  <select id="style">
-    <option value="modern luxury">Modern Luxury</option>
-    <option value="scandinavian">Scandinavian</option>
-    <option value="minimalist">Minimalist</option>
-    <option value="industrial">Industrial</option>
-    <option value="family home">Family Home</option>
-  </select>
-
-  <button onclick="generate()">Generate Vision</button>
-</div>
-
-<div id="grid"></div>
-
-<div id="result">Result will appear here</div>
-
-<script>
-let images = [];
-let selected = new Set();
-
-const grid = document.getElementById("grid");
-const result = document.getElementById("result");
-
-function render() {
-  grid.innerHTML = "";
-
-  images.forEach((url, i) => {
-    const img = document.createElement("img");
-    img.src = url;
-
-    if (selected.has(url)) {
-      img.classList.add("selected");
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Property Vision — See what this house could be</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy:   #0e1c36;
+      --cream:  #f7f3ec;
+      --sand:   #ede7db;
+      --warm:   #e2d9cc;
+      --burnt:  #c85a1e;
+      --burnt2: #a84918;
+      --teal:   #1a5c6b;
+      --muted:  #7a7060;
+      --border: #d5cdc1;
+      --text:   #1a1510;
+      --card:   #ffffff;
+      --r: 10px;
     }
 
-    img.onclick = () => {
-      if (selected.has(url)) {
-        selected.delete(url);
-      } else {
-        selected.add(url);
-      }
-      render();
-    };
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    grid.appendChild(img);
-  });
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── HEADER ─────────────────────────────────────── */
+    .header {
+      background: var(--navy);
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 80% at 80% 110%, rgba(200,90,30,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 60% at 10% -20%, rgba(26,92,107,0.25) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .header-inner {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 36px 28px 56px;
+      position: relative;
+    }
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 16px;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 0.04em;
+      margin-bottom: 32px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .logo-dot {
+      width: 6px; height: 6px;
+      background: var(--burnt);
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .hero-eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--burnt);
+      margin-bottom: 14px;
+    }
+    .hero-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(34px, 6vw, 58px);
+      line-height: 1.1;
+      color: #fff;
+      margin-bottom: 18px;
+    }
+    .hero-title em { color: rgba(255,255,255,0.55); font-style: italic; }
+    .hero-sub {
+      font-size: 17px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.60);
+      line-height: 1.65;
+      max-width: 480px;
+    }
+
+    /* ─── LAYOUT ─────────────────────────────────────── */
+    .main {
+      max-width: 880px;
+      margin: -18px auto 80px;
+      padding: 0 28px;
+    }
+
+    /* ─── API KEY BAR ────────────────────────────────── */
+    .api-bar {
+      background: #fffdf9;
+      border: 1px solid #edd9b8;
+      border-radius: var(--r);
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .api-bar-icon { font-size: 20px; flex-shrink: 0; }
+    .api-bar-text { flex: 1; min-width: 0; }
+    .api-bar-title { font-size: 13px; font-weight: 600; color: #7a4c10; margin-bottom: 2px; }
+    .api-bar-note { font-size: 11px; color: #a06020; }
+    .api-bar-note a { color: var(--teal); }
+    .api-key-input {
+      flex: 1;
+      min-width: 200px;
+      max-width: 300px;
+      padding: 9px 13px;
+      border: 1px solid #ddd0bc;
+      border-radius: 7px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .api-key-input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(26,92,107,0.12); }
+
+    /* ─── CARDS ──────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border-radius: var(--r);
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.03);
+      padding: 26px;
+      margin-bottom: 14px;
+    }
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--burnt);
+      margin-bottom: 6px;
+    }
+    .step-num {
+      width: 17px; height: 17px;
+      background: var(--burnt);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .card-title { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+
+    /* ─── TABS ───────────────────────────────────────── */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px; gap: 0; }
+    .tab {
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--navy); border-bottom-color: var(--navy); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ─── FORM ELEMENTS ──────────────────────────────── */
+    .field { margin-bottom: 16px; }
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+    }
+    input[type="url"], select, textarea {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--cream);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type="url"]:focus, select:focus, textarea:focus {
+      border-color: var(--teal);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(26,92,107,0.1);
+    }
+    select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237a7060' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-color: var(--cream);
+      padding-right: 36px;
+    }
+    textarea { resize: vertical; min-height: 90px; line-height: 1.6; font-size: 13px; }
+
+    .input-row { display: flex; gap: 8px; }
+    .input-row input { flex: 1; }
+
+    /* ─── BUTTONS ────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 10px 18px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--burnt); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--burnt2); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(200,90,30,0.3); }
+    .btn-primary:active { transform: none; }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--sand); }
+    .btn-sm { padding: 8px 14px; font-size: 13px; }
+    .btn-full { width: 100%; padding: 15px; font-size: 15px; font-weight: 600; border-radius: 9px; }
+
+    /* ─── UPLOAD ─────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 9px;
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s;
+      background: var(--cream);
+    }
+    .drop-zone:hover, .drop-zone.over { border-color: var(--teal); background: rgba(26,92,107,0.04); }
+    .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .drop-icon { font-size: 26px; margin-bottom: 10px; }
+    .drop-text { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+    .drop-hint { font-size: 12px; color: var(--muted); }
+
+    /* ─── IMAGE GRID ─────────────────────────────────── */
+    .img-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .thumb {
+      aspect-ratio: 4/3;
+      border-radius: 7px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2.5px solid transparent;
+      position: relative;
+      background: var(--sand);
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .thumb:hover { transform: scale(1.02); }
+    .thumb.selected { border-color: var(--teal); }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .thumb .tick {
+      position: absolute;
+      top: 4px; right: 4px;
+      width: 19px; height: 19px;
+      background: var(--teal);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 10px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .thumb.selected .tick { display: flex; }
+
+    /* ─── STATUS ─────────────────────────────────────── */
+    .thumb .num {
+      position: absolute;
+      top: 4px; left: 4px;
+      width: 20px; height: 20px;
+      background: var(--teal);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .thumb.selected .num { display: flex; }
+    .thumb.selected .tick { display: none; }
+    .selection-count {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--teal);
+      margin-top: 10px;
+      display: none;
+    }
+    .selection-count.show { display: block; }
+    .selection-max { color: var(--burnt); }
+
+    /* results list */
+    .result-item { margin-bottom: 24px; }
+    .result-item:last-child { margin-bottom: 0; }
+    .result-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .status.show { display: block; }
+    .status.info { background: #edf5f7; color: var(--teal); }
+    .status.ok   { background: #edf7ef; color: #267a40; }
+    .status.err  { background: #fdf0eb; color: #bf4122; }
+
+    /* ─── BUDGET PILLS ───────────────────────────────── */
+    .pills { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill {
+      padding: 8px 18px;
+      border: 1.5px solid var(--border);
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      background: #fff;
+      color: var(--text);
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .pill:hover { border-color: var(--burnt); color: var(--burnt); }
+    .pill.active { background: var(--burnt); border-color: var(--burnt); color: #fff; }
+    .budget-desc { font-size: 12px; color: var(--muted); margin-top: 10px; min-height: 16px; font-style: italic; }
+
+    .prompt-hint { font-size: 12px; color: var(--muted); margin-top: 6px; font-style: italic; }
+
+    /* ─── LOADING ────────────────────────────────────── */
+    .loading { display: none; text-align: center; padding: 48px; }
+    .loading.show { display: block; }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--warm);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .loading-sub { font-size: 13px; color: var(--muted); }
+    .loading-steps { display: flex; justify-content: center; gap: 6px; margin-top: 20px; flex-wrap: wrap; }
+    .loading-step {
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--sand);
+      color: var(--muted);
+      transition: all 0.4s;
+    }
+    .loading-step.active { background: var(--teal); color: #fff; }
+
+    /* ─── RESULTS ────────────────────────────────────── */
+    .results { display: none; }
+    .results.show { display: block; }
+    .results-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 12px;
+    }
+    .results-kicker { font-size: 12px; font-weight: 600; color: var(--teal); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+    .results-title { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--navy); }
+
+    /* ─── COMPARISON SLIDER ──────────────────────────── */
+    .compare-wrap {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.14);
+      user-select: none;
+      cursor: col-resize;
+      background: var(--sand);
+    }
+    .cmp-before { display: block; width: 100%; height: auto; }
+    .cmp-after-wrap {
+      position: absolute;
+      inset: 0;
+      clip-path: inset(0 50% 0 0);
+    }
+    .cmp-after { display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top; }
+    .cmp-line {
+      position: absolute;
+      top: 0; bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      background: rgba(255,255,255,0.85);
+      pointer-events: none;
+    }
+    .cmp-handle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 38px; height: 38px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      font-size: 14px;
+    }
+    .cmp-badge {
+      position: absolute;
+      bottom: 12px;
+      padding: 4px 10px;
+      background: rgba(14,28,54,0.65);
+      backdrop-filter: blur(6px);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 100px;
+      pointer-events: none;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .cmp-badge-before { left: 12px; }
+    .cmp-badge-after  { right: 12px; }
+    .cmp-range {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: col-resize;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+    }
+
+    /* ─── SHARE ──────────────────────────────────────── */
+    .share-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .share-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 15px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      color: #fff;
+      font-family: inherit;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .share-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .share-x  { background: #111; }
+    .share-wa { background: #25d366; }
+    .share-dl { background: var(--teal); }
+    .disclaimer { font-size: 11px; color: var(--muted); margin-top: 12px; line-height: 1.5; }
+
+    /* ─── DEBUG PANEL ────────────────────────────────── */
+    .debug-toggle {
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+      margin-top: 8px;
+      display: none;
+      background: none;
+      border: none;
+      font-family: inherit;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .debug-toggle.show { display: inline-block; }
+    .debug-panel {
+      display: none;
+      margin-top: 10px;
+      background: #f5f5f2;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 12px 14px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #444;
+      line-height: 1.7;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .debug-panel.show { display: block; }
+    .debug-line { margin: 0; }
+    .debug-ok   { color: #267a40; }
+    .debug-warn { color: #b06010; }
+    .debug-err  { color: #bf4122; }
+
+    /* ─── RESPONSIVE ─────────────────────────────────── */
+    @media (max-width: 600px) {
+      .header-inner { padding: 28px 20px 48px; }
+      .main { padding: 0 16px; }
+      .card { padding: 20px; }
+      .api-bar { flex-direction: column; }
+      .api-key-input { max-width: 100%; }
+      .input-row { flex-direction: column; }
+      .input-row .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─────────── HEADER ─────────── -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo"><span class="logo-dot"></span> Property Vision</div>
+    <p class="hero-eyebrow">AI renovation visualiser</p>
+    <h1 class="hero-title">See what this house<br><em>could be.</em></h1>
+    <p class="hero-sub">Paste any Rightmove or Zoopla listing. Pick a style and budget. Get a before &amp; after render in 30 seconds.</p>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- ─── WORKER URL (edit if you redeploy) ─── -->
+  <script>
+    const WORKER = "https://property-vision-api.dylangeorgesmythe.workers.dev/";
+  </script>
+
+  <!-- ─── FORM WRAP (hidden during generation) ─── -->
+  <div id="form-wrap">
+
+  <!-- ─── STEP 1 ─── -->
+  <div class="card">
+    <div class="step-badge"><span class="step-num">1</span> Get images</div>
+    <div class="card-title">Property images</div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('url')">Paste listing URL</button>
+      <button class="tab" onclick="switchTab('upload')">Upload photos</button>
+    </div>
+
+    <!-- URL tab -->
+    <div class="tab-panel active" id="tab-url">
+      <div class="field">
+        <label>Rightmove or Zoopla listing URL</label>
+        <div class="input-row">
+          <input type="url" id="listing-url" placeholder="https://www.rightmove.co.uk/properties/..." />
+          <button class="btn btn-ghost btn-sm" onclick="fetchImages()">Extract images</button>
+        </div>
+      </div>
+      <div class="status" id="url-status"></div>
+      <button class="debug-toggle" id="debug-toggle" onclick="toggleDebug()">Show debug log</button>
+      <div class="debug-panel" id="debug-panel"></div>
+      <div class="img-grid" id="url-grid"></div>
+      <div class="selection-count" id="sel-count"></div>
+    </div>
+
+    <!-- Upload tab -->
+    <div class="tab-panel" id="tab-upload">
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept="image/*" multiple onchange="handleUpload(this)" />
+        <div class="drop-icon">📷</div>
+        <div class="drop-text">Drop photos here or click to browse</div>
+        <div class="drop-hint">JPEG or PNG — select up to 5 rooms</div>
+      </div>
+      <div class="img-grid" id="upload-grid"></div>
+      <div class="selection-count" id="upload-sel-count"></div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 2 ─── -->
+  <div class="card">
+    <div class="step-badge"><span class="step-num">2</span> Style</div>
+    <div class="card-title">Renovation style</div>
+    <div class="field">
+      <label>Choose a style</label>
+      <select id="style" onchange="onStyleChange()">
+        <option value="">— Pick a style —</option>
+        <option value="modern">Modern Minimalist</option>
+        <option value="scandi">Scandi / Nordic</option>
+        <option value="industrial">Industrial Loft</option>
+        <option value="country">Country / Cottage</option>
+        <option value="maximalist">Maximalist Eclectic</option>
+        <option value="artdeco">Art Deco</option>
+        <option value="japandi">Japandi</option>
+        <option value="victorian">Victorian Restored</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Room type <span style="font-weight:400;text-transform:none;letter-spacing:0">— helps the AI stay faithful to the space</span></label>
+      <select id="room-type">
+        <option value="">— Select room type —</option>
+        <option value="living room">Living room</option>
+        <option value="kitchen">Kitchen</option>
+        <option value="kitchen-diner">Kitchen / diner</option>
+        <option value="dining room">Dining room</option>
+        <option value="bedroom">Bedroom</option>
+        <option value="bathroom">Bathroom</option>
+        <option value="en-suite">En-suite bathroom</option>
+        <option value="hallway">Hallway / entrance</option>
+        <option value="home office">Home office / study</option>
+        <option value="exterior">Exterior / garden</option>
+        <option value="mixed">Mixed / multiple rooms</option>
+      </select>
+    </div>
+    <div id="prompt-wrap" style="display:none">
+      <div class="field">
+        <label>Prompt <span style="font-weight:400;text-transform:none;letter-spacing:0">— edit freely</span></label>
+        <textarea id="prompt" rows="4"></textarea>
+        <p class="prompt-hint">Sent directly to the AI model. Tweak it to shape the output.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 3 ─── -->
+  <div class="card">
+    <div class="step-badge"><span class="step-num">3</span> Budget</div>
+    <div class="card-title">Renovation budget</div>
+    <div class="pills">
+      <button class="pill" onclick="setBudget(this,'10k')">£10k</button>
+      <button class="pill" onclick="setBudget(this,'25k')">£25k</button>
+      <button class="pill" onclick="setBudget(this,'50k')">£50k</button>
+      <button class="pill" onclick="setBudget(this,'100k+')">£100k+</button>
+    </div>
+    <div class="budget-desc" id="budget-desc"></div>
+  </div>
+
+  <!-- ─── GENERATE ─── -->
+  <div class="card" style="padding:20px 26px; text-align:center;">
+    <button class="btn btn-primary btn-full" id="gen-btn" onclick="generate()">
+      ✨ &nbsp;See the potential
+    </button>
+  </div>
+
+  </div><!-- /form-wrap -->
+
+  <!-- ─── LOADING ─── -->
+  <div class="card loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-title" id="loading-title">Imagining the potential…</div>
+    <div class="loading-sub" id="loading-sub">Takes 20–40 seconds per room.</div>
+    <div class="loading-steps">
+      <span class="loading-step active" id="ls-0">Queued</span>
+      <span class="loading-step" id="ls-1">Analysing space</span>
+      <span class="loading-step" id="ls-2">Applying style</span>
+      <span class="loading-step" id="ls-3">Rendering</span>
+      <span class="loading-step" id="ls-4">Finishing</span>
+    </div>
+  </div>
+
+  <!-- ─── RESULTS ─── -->
+  <div class="card results" id="results">
+    <div class="results-header">
+      <div>
+        <div class="results-kicker">✓ Done</div>
+        <div class="results-title" id="results-title">Before &amp; After</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="resetAll()">Start again</button>
+    </div>
+    <!-- dynamic before/afters injected here -->
+    <div id="results-list"></div>
+    <div class="share-row">
+      <button class="share-btn share-x"  onclick="shareX()">𝕏 &nbsp;Share on X</button>
+      <button class="share-btn share-wa" onclick="shareWA()">💬 &nbsp;WhatsApp</button>
+      <button class="share-btn share-dl" onclick="dlAfter()">⬇ &nbsp;Download last render</button>
+    </div>
+    <p class="disclaimer">AI renders are illustrative only — not architectural drawings. Actual results will vary.</p>
+  </div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+const S = { images: [], budget: null, lastAfterUrl: null };
+const MAX_SEL = 5;
+
+// ═══════════════════════════════════════════════
+// THUMBNAILS — multi-select up to MAX_SEL
+// ═══════════════════════════════════════════════
+function addThumb(grid, url, src, autoSelect = false) {
+  const div = document.createElement('div');
+  div.className = 'thumb';
+  div.innerHTML = `<img src="${url}" alt="" onerror="this.closest('.thumb').remove()" />
+    <div class="tick">✓</div><div class="num"></div>`;
+  div.addEventListener('click', () => toggleThumb(div, url, src));
+  grid.appendChild(div);
+  if (autoSelect) toggleThumb(div, url, src);
 }
 
-async function loadImages() {
-  const url = document.getElementById("url").value;
-
-  const res = await fetch("https://property-vision-api.dylangeorgesmythe.workers.dev/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "scrape",
-      url
-    })
+function toggleThumb(div, url, src) {
+  if (div.classList.contains('selected')) {
+    // Deselect
+    S.images = S.images.filter(u => u !== url);
+    div.classList.remove('selected');
+  } else {
+    if (S.images.length >= MAX_SEL) {
+      div.style.animation = 'shake 0.3s';
+      setTimeout(() => div.style.animation = '', 300);
+      return;
+    }
+    S.images.push(url);
+    div.classList.add('selected');
+  }
+  // Renumber all selected thumbs in both grids
+  let n = 0;
+  document.querySelectorAll('.thumb.selected').forEach(t => {
+    n++;
+    t.querySelector('.num').textContent = n;
   });
-
-  const data = await res.json();
-
-  images = data.images || [];
-  selected.clear();
-  render();
+  updateCounter(src);
 }
 
-async function generate() {
-  const style = document.getElementById("style").value;
+function updateCounter(src) {
+  const countEl = document.getElementById(src === 'url' ? 'sel-count' : 'upload-sel-count');
+  if (!countEl) return;
+  const n = S.images.length;
+  if (n === 0) { countEl.classList.remove('show'); return; }
+  const maxMsg = n >= MAX_SEL ? ` <span class="selection-max">(max reached)</span>` : '';
+  countEl.innerHTML = `${n} of ${MAX_SEL} rooms selected${maxMsg} — click a selected image to deselect`;
+  countEl.classList.add('show');
+}
 
-  const selectedImages = Array.from(selected);
+// ═══════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════
+function switchTab(t) {
+  const tabs = document.querySelectorAll('.tab');
+  tabs[0].classList.toggle('active', t === 'url');
+  tabs[1].classList.toggle('active', t === 'upload');
+  document.getElementById('tab-url').classList.toggle('active', t === 'url');
+  document.getElementById('tab-upload').classList.toggle('active', t === 'upload');
+}
 
-  if (selectedImages.length === 0) {
-    result.innerText = "Select at least one image";
+// ═══════════════════════════════════════════════
+// URL FETCHING — via Cloudflare Worker
+// ═══════════════════════════════════════════════
+let debugLines = [];
+function dbg(msg, cls = '') {
+  debugLines.push({ msg, cls });
+  const panel = document.getElementById('debug-panel');
+  if (panel && panel.classList.contains('show')) renderDebug();
+  console.log(`[PV] ${msg}`);
+}
+function renderDebug() {
+  const panel = document.getElementById('debug-panel');
+  if (!panel) return;
+  panel.innerHTML = debugLines.map(l =>
+    `<p class="debug-line ${l.cls}">${escHtml(l.msg)}</p>`
+  ).join('');
+  panel.scrollTop = panel.scrollHeight;
+}
+function toggleDebug() {
+  const panel = document.getElementById('debug-panel');
+  const btn   = document.getElementById('debug-toggle');
+  const open  = panel.classList.toggle('show');
+  btn.textContent = open ? 'Hide debug log' : 'Show debug log';
+  if (open) renderDebug();
+}
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function fetchImages() {
+  const url  = document.getElementById('listing-url').value.trim();
+  const st   = document.getElementById('url-status');
+  const grid = document.getElementById('url-grid');
+  const dbgToggle = document.getElementById('debug-toggle');
+
+  if (!url) return setStatus(st, 'Please paste a listing URL.', 'err');
+  debugLines = [];
+  grid.innerHTML = '';
+  dbgToggle.classList.remove('show');
+  setStatus(st, '🔍 Fetching listing…', 'info');
+  dbg(`Fetching: ${url}`);
+
+  let data;
+  try {
+    const r = await fetch(WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'scrape', url }),
+    });
+    data = await r.json();
+  } catch(e) {
+    setStatus(st, `⚠️ Worker error: ${e.message}`, 'err');
+    dbg(`Worker failed: ${e.message}`, 'debug-err');
+    dbgToggle.classList.add('show');
     return;
   }
 
-  result.innerText = "Generating...";
+  dbgToggle.classList.add('show');
+  if (data.error) {
+    setStatus(st, `⚠️ ${data.error}`, 'err');
+    dbg(data.error, 'debug-err');
+    return;
+  }
 
-  const res = await fetch("https://property-vision-api.dylangeorgesmythe.workers.dev/", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      action: "generate",
-      images: selectedImages,
-      style
-    })
+  const imgs = data.images || [];
+  dbg(`Worker found ${imgs.length} image(s)`, imgs.length ? 'debug-ok' : 'debug-warn');
+  if (data.debug) dbg(data.debug, 'debug-warn');
+  imgs.forEach(u => dbg(`  ${u}`));
+
+  if (!imgs.length) {
+    setStatus(st, '⚠️ No images found — try the Upload tab instead (screenshot rooms from the listing).', 'err');
+    return;
+  }
+
+  setStatus(st, `✓ Found ${imgs.length} image${imgs.length > 1 ? 's' : ''} — select up to ${MAX_SEL} rooms.`, 'ok');
+  imgs.forEach(u => addThumb(grid, u, 'url'));
+}
+// ═══════════════════════════════════════════════
+// UPLOAD
+// ═══════════════════════════════════════════════
+function handleUpload(input) {
+  const grid = document.getElementById('upload-grid');
+  grid.innerHTML = '';
+  [...input.files].forEach((file, i) => {
+    const reader = new FileReader();
+    reader.onload = e => addThumb(grid, e.target.result, 'upload', i < 1);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Drag-and-drop
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('over');
+  const fi = document.getElementById('file-input');
+  fi.files = e.dataTransfer.files;
+  handleUpload(fi);
+});
+
+// ═══════════════════════════════════════════════
+// STYLE PROMPTS — simple, image-deferring language
+// ═══════════════════════════════════════════════
+// Key principle: don't tell the model what kind of space it is.
+// Let it read the image. Just describe the aesthetic direction.
+const STYLE_FLAVOURS = {
+  modern:
+    'modern minimalist — clean lines, warm whites and stone tones, natural oak, concealed storage, pared-back fixtures',
+  scandi:
+    'Scandinavian / Nordic — light birch wood, white walls, linen textures, simple crafted furniture, warm ambient lighting, indoor plants',
+  industrial:
+    'industrial loft — exposed brick or raw concrete, dark steel, reclaimed timber, Edison bulb pendants, utilitarian fittings',
+  country:
+    'English country cottage — warm stone and aged timber, heritage paint colours, floral soft furnishings, reclaimed wood, period character',
+  maximalist:
+    'maximalist eclectic — rich jewel tones, layered textures, gallery-style display, velvet, brass and gold accents',
+  artdeco:
+    'Art Deco — geometric patterns, lacquered black and gold, mirrored surfaces, velvet, fan-shaped detailing, glamorous lighting',
+  japandi:
+    'Japandi — Japanese wabi-sabi minimalism meets Scandi warmth, natural textures, muted earthy palette, low-profile furniture, simple botanicals',
+  victorian:
+    'restored Victorian — period cornicing, encaustic or parquet floors, cast-iron fireplace, dado rail, Farrow & Ball heritage colours, sash windows',
+};
+
+const PROMPTS = Object.fromEntries(
+  Object.entries(STYLE_FLAVOURS).map(([k, v]) => [k, `Restyle this space in a ${v} aesthetic.`])
+);
+
+const BUDGET_DESCS = {
+  '10k':  'Cosmetic only — fresh paint, new fixtures, soft furnishings, minor swaps.',
+  '25k':  'Moderate — kitchen refresh, new flooring, bathroom update, redecoration.',
+  '50k':  'Significant — full kitchen, new bathroom, flooring, windows, replastering.',
+  '100k+':'Full renovation — structural work, premium kitchen and bathrooms, all systems, top-spec finishes.',
+};
+
+const BUDGET_PROMPTS = {
+  '10k':  'Budget: around £10,000 — a modest scope, so focus on cosmetic and atmospheric changes only.',
+  '25k':  'Budget: around £25,000 — a reasonable scope allowing meaningful surface-level improvements.',
+  '50k':  'Budget: around £50,000 — a solid budget; show meaningful transformation without going overboard.',
+  '100k+':'Budget: £100,000+ — a generous scope; feel free to show a comprehensive, high-quality transformation.',
+};
+
+// ─── SYSTEM CONSTRAINTS ──────────────────────────────────────────
+const SYSTEM_CONSTRAINTS = [
+  'Study the image carefully. Work only with the space that is actually shown — do not invent rooms, extensions, or areas that do not exist.',
+  'Preserve all architecture exactly: walls, windows, doors, ceiling height and room shape must not change.',
+  'Only update surface finishes, furniture, textiles, light fittings, and decorative objects.',
+  'Keep the same camera angle and field of view as the original.',
+  'The result should feel like a warm, lived-in home — not a staged showroom.',
+  'Output must look like a real photograph.',
+].join(' ');
+
+function buildPrompt(stylePrompt, budget, roomType) {
+  const budgetCtx = budget   ? `Budget scope: ${BUDGET_PROMPTS[budget]}` : '';
+  const roomCtx   = roomType ? `The AI detected this space as: ${roomType}.` : '';
+  return `${stylePrompt} ${budgetCtx} ${roomCtx} Rules: ${SYSTEM_CONSTRAINTS}`.trim();
+}
+
+// ─── AUTO ROOM-TYPE DETECTION via fal.ai vision ──────────────────
+// Called before each generation. Uses moondream (fast, cheap vision model).
+async function detectRoomType(imageUrl, key) {
+  try {
+    const HEADERS = { 'Authorization': `Key ${key}`, 'Content-Type': 'application/json' };
+    const sub = await fetch('https://queue.fal.run/fal-ai/moondream/batched', {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({
+        inputs: [{
+          image_url: imageUrl,
+          question: 'What type of room or space is shown? Reply with only one of: living room, kitchen, bedroom, bathroom, hallway, dining room, home office, garden, exterior, or other.',
+        }],
+      }),
+    });
+    if (!sub.ok) return null;
+    const subData = await sub.json();
+    const { status_url, response_url } = subData;
+    if (!status_url) return null;
+
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const poll = await fetch(status_url, { headers: HEADERS });
+      if (!poll.ok) continue;
+      const s = await poll.json();
+      if (s.status === 'COMPLETED') {
+        const res = await fetch(response_url, { headers: HEADERS });
+        const data = await res.json();
+        // moondream batched returns outputs array
+        const answer = data?.outputs?.[0]?.answer || data?.answer || '';
+        console.log('[vision] Room type detected:', answer);
+        return answer.trim().toLowerCase() || null;
+      }
+      if (s.status === 'FAILED') return null;
+    }
+  } catch (e) {
+    console.warn('[vision] Room detection failed:', e.message);
+  }
+  return null;
+}
+
+function onStyleChange() {
+  const v = document.getElementById('style').value;
+  document.getElementById('prompt-wrap').style.display = v ? 'block' : 'none';
+  if (v) document.getElementById('prompt').value = PROMPTS[v];
+}
+
+function setBudget(el, v) {
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  S.budget = v;
+  document.getElementById('budget-desc').textContent = BUDGET_DESCS[v];
+}
+
+// ═══════════════════════════════════════════════
+// GENERATE — sends to Cloudflare Worker → OpenAI
+// ═══════════════════════════════════════════════
+async function generate() {
+  if (!S.images.length)  return alert('Please select at least one image (Step 1).');
+  if (!document.getElementById('style').value) return alert('Please choose a style (Step 2).');
+  if (!S.budget)         return alert('Please select a budget (Step 3).');
+
+  const stylePrompt = document.getElementById('prompt').value.trim();
+  const fullPrompt  = buildPrompt(stylePrompt, S.budget, null);
+  const total       = S.images.length;
+
+  document.getElementById('form-wrap').style.display = 'none';
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('results-list').innerHTML = '';
+  setLoading(true);
+
+  const pairs = [];
+
+  for (let i = 0; i < total; i++) {
+    const imageUrl = S.images[i];
+    document.getElementById('loading-title').textContent =
+      total > 1 ? `Imagining room ${i + 1} of ${total}…` : 'Imagining the potential…';
+    document.getElementById('loading-sub').textContent = 'Sending to OpenAI…';
+    document.querySelectorAll('.loading-step').forEach((el, j) => el.classList.toggle('active', j === 0));
+
+    let step = 0;
+    const stepTimer = setInterval(() => {
+      step = Math.min(step + 1, 4);
+      document.querySelectorAll('.loading-step').forEach((el, j) => el.classList.toggle('active', j === step));
+    }, 9000);
+
+    try {
+      // For uploaded images (data URLs), convert to blob and send differently
+      let body;
+      if (imageUrl.startsWith('data:')) {
+        // Send base64 — worker will decode it
+        body = JSON.stringify({ action: 'generate', imageDataUrl: imageUrl, prompt: fullPrompt });
+      } else {
+        body = JSON.stringify({ action: 'generate', imageUrl, prompt: fullPrompt });
+      }
+
+      const r = await fetch(WORKER, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      });
+      const data = await r.json();
+      clearInterval(stepTimer);
+
+      if (data.error) throw new Error(data.error + (data.details ? ': ' + data.details : ''));
+      if (!data.image) throw new Error('No image returned from worker');
+
+      S.lastAfterUrl = data.image;
+      pairs.push({ before: imageUrl, after: data.image, n: i + 1 });
+      showResults(pairs, total);
+    } catch(e) {
+      clearInterval(stepTimer);
+      console.error(`[gen] Room ${i + 1} failed:`, e);
+      pairs.push({ before: imageUrl, after: null, error: e.message, n: i + 1 });
+      showResults(pairs, total);
+    }
+  }
+
+  setLoading(false);
+}
+
+// ═══════════════════════════════════════════════
+// RESULTS — multi-image
+// ═══════════════════════════════════════════════
+function showResults(pairs, total) {
+  const list = document.getElementById('results-list');
+  list.innerHTML = '';
+
+  pairs.forEach((p, idx) => {
+    const item = document.createElement('div');
+    item.className = 'result-item';
+
+    if (p.error) {
+      item.innerHTML = `<div class="result-label">Room ${p.n}</div>
+        <div class="status err show">⚠️ Failed: ${escHtml(p.error)}</div>`;
+    } else {
+      const id = `cmp-${idx}`;
+      item.innerHTML = `
+        ${total > 1 ? `<div class="result-label">Room ${p.n}${p.roomType ? ` — ${p.roomType}` : ''}</div>` : ''}
+        <div class="compare-wrap" id="${id}">
+          <img class="cmp-before" src="${p.before}" alt="Before" />
+          <div class="cmp-after-wrap" id="${id}-aw" style="clip-path:inset(0 50% 0 0)">
+            <img class="cmp-after" src="${p.after}" alt="After" />
+          </div>
+          <div class="cmp-line" style="left:50%"></div>
+          <div class="cmp-handle" style="left:50%">↔</div>
+          <span class="cmp-badge cmp-badge-before">Before</span>
+          <span class="cmp-badge cmp-badge-after">After</span>
+          <input type="range" min="0" max="100" value="50" class="cmp-range"
+            oninput="slideItem('${id}',this.value)" />
+        </div>`;
+    }
+    list.appendChild(item);
   });
 
-  const data = await res.json();
+  const done   = pairs.filter(p => !p.error).length;
+  const failed = pairs.filter(p => p.error).length;
+  const label  = total > 1
+    ? `${done} of ${total} rooms rendered${failed ? ` (${failed} failed)` : ''}`
+    : 'Before & After';
+  document.getElementById('results-title').textContent = label;
 
-  result.innerText = data.result || JSON.stringify(data, null, 2);
+  setLoading(false);
+  const el = document.getElementById('results');
+  el.classList.add('show');
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function slideItem(id, v) {
+  const pct = Number(v);
+  document.getElementById(`${id}-aw`).style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
+  const wrap = document.getElementById(id);
+  wrap.querySelector('.cmp-line').style.left   = pct + '%';
+  wrap.querySelector('.cmp-handle').style.left = pct + '%';
+}
+
+// Keep legacy slide() for compatibility
+function slide(v) { slideItem('cmp-0', v); }
+
+// ═══════════════════════════════════════════════
+// SHARING
+// ═══════════════════════════════════════════════
+function shareX() {
+  const text = encodeURIComponent('Used AI to see what this property could look like 🏠✨ — try Property Vision:');
+  window.open(`https://x.com/intent/tweet?text=${text}`, '_blank');
+}
+function shareWA() {
+  const text = encodeURIComponent('See what this property could look like 🏠✨');
+  window.open(`https://wa.me/?text=${text}`, '_blank');
+}
+async function dlAfter() {
+  const url = S.lastAfterUrl;
+  if (!url) return;
+  try {
+    const r = await fetch(url);
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'property-vision-render.jpg';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch { window.open(url, '_blank'); }
+}
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function setStatus(el, msg, type) {
+  el.textContent = msg;
+  el.className = `status ${type} show`;
+}
+function setLoading(on) {
+  document.getElementById('loading').classList.toggle('show', on);
+  if (on) document.querySelectorAll('.loading-step').forEach((el, i) => el.classList.toggle('active', i === 0));
+}
+function resetAll() {
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('results-list').innerHTML = '';
+  document.getElementById('listing-url').value = '';
+  document.getElementById('url-grid').innerHTML = '';
+  document.getElementById('upload-grid').innerHTML = '';
+  const sc = document.getElementById('sel-count');
+  const uc = document.getElementById('upload-sel-count');
+  if (sc) sc.classList.remove('show');
+  if (uc) uc.classList.remove('show');
+  document.getElementById('style').value = '';
+  document.getElementById('room-type').value = '';
+  document.getElementById('prompt-wrap').style.display = 'none';
+  document.getElementById('budget-desc').textContent = '';
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  document.getElementById('form-wrap').style.display = 'block';
+  document.getElementById('gen-btn').disabled = false;
+  S.images = []; S.budget = null; S.lastAfterUrl = null;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 </script>
-
 </body>
 </html>
