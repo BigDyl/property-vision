@@ -560,10 +560,10 @@
   <div class="api-bar">
     <div class="api-bar-icon">🔑</div>
     <div class="api-bar-text">
-      <div class="api-bar-title">fal.ai API key required</div>
-      <div class="api-bar-note">Stored in your browser only. Free to get at <a href="https://fal.ai" target="_blank">fal.ai</a> — ~£0.05–0.10 per render.</div>
+      <div class="api-bar-title">OpenAI API key required</div>
+      <div class="api-bar-note">Stored in your browser only. Get one at <a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a> — ~£0.10–0.20 per render.</div>
     </div>
-    <input class="api-key-input" type="password" id="api-key" placeholder="Paste your fal.ai key…" oninput="saveKey()" />
+    <input class="api-key-input" type="password" id="api-key" placeholder="sk-..." oninput="saveKey()" />
   </div>
 
   <!-- ─── FORM WRAP (hidden during generation) ─── -->
@@ -1071,23 +1071,20 @@ const BUDGET_DESCS = {
 };
 
 const BUDGET_PROMPTS = {
-  '10k':  'Cosmetic changes only: new paint, updated light fittings, soft furnishings. No structural work or major replacements.',
-  '25k':  'Moderate update: refresh surface finishes, update key fixtures, new flooring if appropriate.',
-  '50k':  'Significant renovation: replace major elements (kitchen units, bathroom suite, flooring) where visible.',
-  '100k+':'Full transformation: premium materials and finishes throughout, everything updated to a high specification.',
+  '10k':  'Budget: around £10,000 — a modest scope, so focus on cosmetic and atmospheric changes only.',
+  '25k':  'Budget: around £25,000 — a reasonable scope allowing meaningful surface-level improvements.',
+  '50k':  'Budget: around £50,000 — a solid budget; show meaningful transformation without going overboard.',
+  '100k+':'Budget: £100,000+ — a generous scope; feel free to show a comprehensive, high-quality transformation.',
 };
 
 // ─── SYSTEM CONSTRAINTS ──────────────────────────────────────────
-// These are injected silently into every prompt.
 const SYSTEM_CONSTRAINTS = [
-  'Look carefully at the image and identify what kind of space it shows. Work only with what is actually there.',
-  'Do NOT change the architecture: all walls, windows, doors, ceiling height and room layout must remain exactly as in the original image.',
-  'Do NOT add rooms, extensions, or spaces that do not exist in the original photo.',
-  'Update only surface finishes, furniture, textiles, light fittings and decorative objects.',
-  'Maintain the identical camera angle, perspective and field of view as the original photo.',
-  'The result must feel like a real, lived-in home — warm and personal, not a staged showroom.',
-  'Output must look like a real photograph, not an illustration, 3D render or CGI.',
-  'Do not add people, pets, or visible brand logos.',
+  'Study the image carefully. Work only with the space that is actually shown — do not invent rooms, extensions, or areas that do not exist.',
+  'Preserve all architecture exactly: walls, windows, doors, ceiling height and room shape must not change.',
+  'Only update surface finishes, furniture, textiles, light fittings, and decorative objects.',
+  'Keep the same camera angle and field of view as the original.',
+  'The result should feel like a warm, lived-in home — not a staged showroom.',
+  'Output must look like a real photograph.',
 ].join(' ');
 
 function buildPrompt(stylePrompt, budget, roomType) {
@@ -1154,15 +1151,15 @@ function setBudget(el, v) {
 // GENERATE — loops through all selected images
 // ═══════════════════════════════════════════════
 async function generate() {
-  if (!getKey())         return alert('Please enter your fal.ai API key first.');
+  if (!getKey())         return alert('Please enter your OpenAI API key first.');
   if (!S.images.length)  return alert('Please select at least one image (Step 1).');
   if (!document.getElementById('style').value) return alert('Please choose a style (Step 2).');
-  if (!S.budget)         return alert('Please select a renovation budget (Step 3).');
+  if (!S.budget)         return alert('Please select a budget (Step 3).');
 
   const stylePrompt = document.getElementById('prompt').value.trim();
+  const fullPrompt  = buildPrompt(stylePrompt, S.budget, null);
   const total       = S.images.length;
 
-  // Hide form, show loading
   document.getElementById('form-wrap').style.display = 'none';
   document.getElementById('results').classList.remove('show');
   document.getElementById('results-list').innerHTML = '';
@@ -1171,33 +1168,20 @@ async function generate() {
   const pairs = [];
 
   for (let i = 0; i < total; i++) {
-    const imgUrl = S.images[i];
     document.getElementById('loading-title').textContent =
       total > 1 ? `Imagining room ${i + 1} of ${total}…` : 'Imagining the potential…';
-    document.getElementById('loading-sub').textContent = total > 1
-      ? 'Detecting room type, then generating…'
-      : 'Takes 20–40 seconds.';
+    document.getElementById('loading-sub').textContent = 'Sending to OpenAI… (20–45 seconds)';
     document.querySelectorAll('.loading-step').forEach((el, j) => el.classList.toggle('active', j === 0));
 
     try {
-      const prepared = await prepareImage(imgUrl);
-
-      // Auto-detect room type before generating
-      document.getElementById('loading-sub').textContent = 'Identifying the space…';
-      const roomType = await detectRoomType(prepared, getKey());
-      console.log(`[gen] Room ${i + 1} detected as:`, roomType);
-      if (roomType) {
-        document.getElementById('loading-sub').textContent = `Detected: ${roomType}. Generating…`;
-      }
-
-      const fullPrompt = buildPrompt(stylePrompt, S.budget, roomType);
-      const afterUrl   = await callFal(prepared, fullPrompt, getKey());
-      S.lastAfterUrl   = afterUrl;
-      pairs.push({ before: imgUrl, after: afterUrl, roomType, n: i + 1 });
+      const prepared = await prepareImage(S.images[i]);
+      const afterUrl  = await callOpenAI(prepared, fullPrompt, getKey());
+      S.lastAfterUrl  = afterUrl;
+      pairs.push({ before: S.images[i], after: afterUrl, n: i + 1 });
       showResults(pairs, total);
     } catch (e) {
       console.error(`[gen] Room ${i + 1} failed:`, e);
-      pairs.push({ before: imgUrl, after: null, error: e.message, n: i + 1 });
+      pairs.push({ before: S.images[i], after: null, error: e.message, n: i + 1 });
       showResults(pairs, total);
     }
   }
@@ -1205,92 +1189,107 @@ async function generate() {
   setLoading(false);
 }
 
-// Convert any image source to something fal.ai can use
+// Fetch external image via proxy → data URL
 async function prepareImage(url) {
   if (url.startsWith('data:')) return url;
-  // For external URLs, proxy through allorigins → base64
   try {
     const r = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
     const blob = await r.blob();
     return await blobToDataUrl(blob);
   } catch {
-    return url; // fallback: pass URL directly
+    return url;
   }
 }
 
 function blobToDataUrl(blob) {
   return new Promise((res, rej) => {
     const r = new FileReader();
-    r.onload  = () => res(r.result);
+    r.onload = () => res(r.result);
     r.onerror = rej;
     r.readAsDataURL(blob);
   });
 }
 
 // ═══════════════════════════════════════════════
-// FAL.AI — manual polling using response-provided URLs
+// OPENAI gpt-image-1 image editing
 // ═══════════════════════════════════════════════
-async function callFal(imageUrl, prompt, key) {
-  const HEADERS = { 'Authorization': `Key ${key}`, 'Content-Type': 'application/json' };
+async function callOpenAI(imageDataUrl, prompt, key) {
+  console.log('[openai] Converting image…');
+  document.getElementById('loading-sub').textContent = 'Preparing image…';
 
-  // 1. Submit
-  console.log('[fal] Submitting job…');
-  const sub = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext', {
-    method: 'POST',
-    headers: HEADERS,
-    body: JSON.stringify({
-      image_url:           imageUrl,
-      prompt:              prompt,
-      num_inference_steps: 28,
-      guidance_scale:      3.5,
-      num_images:          1,
-      output_format:       'jpeg',
-    }),
-  });
+  // Convert to PNG blob via canvas (normalises format, handles CORS-fetched images)
+  const blob = await dataUrlToCanvasBlob(imageDataUrl, 1024);
 
-  const subText = await sub.text();
-  console.log('[fal] Submit — HTTP', sub.status, subText);
-  if (!sub.ok) throw new Error(`fal.ai rejected request (HTTP ${sub.status}): ${subText}`);
+  const form = new FormData();
+  form.append('image', blob, 'room.png');
+  form.append('prompt', prompt);
+  form.append('model', 'gpt-image-1');
+  form.append('n', '1');
+  form.append('size', '1024x1024');
 
-  const subData = JSON.parse(subText);
-  // fal.ai returns the exact URLs to use — don't construct them, use these directly
-  const { status_url, response_url } = subData;
-  console.log('[fal] status_url:', status_url);
-  console.log('[fal] response_url:', response_url);
-  if (!status_url || !response_url) throw new Error('No status_url/response_url in submit response: ' + subText);
+  console.log('[openai] Calling /v1/images/edits — prompt length:', prompt.length);
+  document.getElementById('loading-sub').textContent = 'OpenAI is imagining the space…';
 
-  // 2. Poll status_url until COMPLETED
-  const STEPS = ['Queued…', 'Analysing space', 'Applying style', 'Rendering', 'Finishing'];
-  for (let i = 0; i < 80; i++) {
-    await new Promise(r => setTimeout(r, 3000));
+  // Animate loading steps while we wait
+  let step = 0;
+  const stepTimer = setInterval(() => {
+    step = Math.min(step + 1, 4);
+    document.querySelectorAll('.loading-step').forEach((el, j) => el.classList.toggle('active', j === step));
+  }, 8000);
 
-    document.querySelectorAll('.loading-step').forEach((el, j) =>
-      el.classList.toggle('active', j === Math.min(Math.floor(i / 5), STEPS.length - 1)));
+  try {
+    const resp = await fetch('https://api.openai.com/v1/images/edits', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${key}` },
+      body: form,
+    });
 
-    const poll = await fetch(status_url, { headers: HEADERS });
-    const pollText = await poll.text();
-    console.log(`[fal] Poll ${i + 1} — HTTP ${poll.status}:`, pollText);
-    if (!poll.ok) continue;
+    const text = await resp.text();
+    console.log('[openai] HTTP', resp.status, text.slice(0, 400));
 
-    const s = JSON.parse(pollText);
-    if (s.queue_position != null)
-      document.getElementById('loading-sub').textContent = `Queue position: ${s.queue_position}`;
-
-    if (s.status === 'COMPLETED') {
-      // 3. Fetch result from response_url
-      const res = await fetch(response_url, { headers: HEADERS });
-      const resText = await res.text();
-      console.log('[fal] Result:', resText);
-      const data = JSON.parse(resText);
-      const img = data?.images?.[0]?.url || data?.image?.url;
-      if (!img) throw new Error('No image URL in result: ' + resText);
-      return img;
+    if (!resp.ok) {
+      let msg = text;
+      try { msg = JSON.parse(text).error?.message || text; } catch(e) {}
+      throw new Error(`OpenAI error ${resp.status}: ${msg}`);
     }
 
-    if (s.status === 'FAILED') throw new Error('Generation failed: ' + (s.error || pollText));
-  }
+    const data = JSON.parse(text);
+    const b64 = data.data?.[0]?.b64_json;
+    const url  = data.data?.[0]?.url;
 
-  throw new Error('Timed out. Please try again.');
+    if (b64) return `data:image/png;base64,${b64}`;
+    if (url) return url;
+    throw new Error('No image in OpenAI response: ' + text.slice(0, 200));
+
+  } finally {
+    clearInterval(stepTimer);
+  }
+}
+
+// Draw data URL onto a canvas and return as PNG blob
+// Also handles cross-origin images that have been proxied to data URLs
+function dataUrlToCanvasBlob(dataUrl, maxSize = 1024) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxSize || h > maxSize) {
+        const s = Math.min(maxSize / w, maxSize / h);
+        w = Math.round(w * s);
+        h = Math.round(h * s);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        b => b ? resolve(b) : reject(new Error('Canvas toBlob failed')),
+        'image/png'
+      );
+    };
+    img.onerror = () => reject(new Error('Image failed to load for canvas conversion'));
+    img.src = dataUrl;
+  });
 }
 
 // ═══════════════════════════════════════════════
