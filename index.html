@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Property Vision</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Property Vision</title>
 
-  <style>
-    body { font-family: Arial, sans-serif; background:#f7f3ec; margin:0; padding:20px; }
-    .card { max-width:900px; margin:20px auto; background:#fff; padding:20px; border-radius:10px; }
-    input, button { padding:10px; font-size:14px; }
-    button { cursor:pointer; }
-    .thumb { display:inline-block; margin:5px; border:1px solid #ddd; }
-    .thumb img { width:140px; height:auto; display:block; }
-    #status { margin-top:10px; font-size:14px; }
-  </style>
+<style>
+body { font-family: Arial; background:#f7f3ec; margin:0; padding:20px; }
+.card { max-width:900px; margin:20px auto; background:#fff; padding:20px; border-radius:10px; }
+input, button { padding:10px; font-size:14px; }
+button { cursor:pointer; }
+.thumb { display:inline-block; margin:5px; border:1px solid #ddd; }
+.thumb img { width:140px; display:block; }
+.status { margin-top:10px; }
+</style>
 </head>
 
 <body>
@@ -21,82 +21,72 @@
 <div class="card">
   <h2>Property Vision</h2>
 
-  <input id="api-key" type="password" placeholder="OpenAI API key (not used yet)" />
-  <br><br>
-
   <input id="listing-url" type="text" placeholder="Paste Rightmove/Zoopla URL" style="width:70%;" />
   <button onclick="fetchImages()">Extract images</button>
 
   <div id="status"></div>
-  <div id="url-grid"></div>
+  <div id="grid"></div>
 </div>
 
 <script>
 
+/* IMPORTANT: your Cloudflare Worker URL */
 const WORKER_URL = "https://property-vision-api.dylangeorgesmythe.workers.dev";
 
-/* =========================
-   SAFE INIT (fixes null crash)
-========================= */
+/* safe DOM init */
 document.addEventListener("DOMContentLoaded", () => {
-  const api = document.getElementById("api-key");
-  if (api) {
-    api.value = localStorage.getItem("pv_key") || "";
-    api.addEventListener("input", () => {
-      localStorage.setItem("pv_key", api.value);
-    });
-  }
+  console.log("App loaded");
 });
 
-/* =========================
-   STATUS
-========================= */
+/* status helper */
 function setStatus(msg) {
   document.getElementById("status").textContent = msg;
 }
 
-/* =========================
-   FETCH IMAGES (WORKING VERSION)
-========================= */
+/* MAIN FUNCTION */
 async function fetchImages() {
   const url = document.getElementById("listing-url").value.trim();
-  const grid = document.getElementById("url-grid");
+  const grid = document.getElementById("grid");
 
-  if (!url) return alert("Paste a listing URL");
+  if (!url) return alert("Paste a URL");
 
   grid.innerHTML = "";
-  setStatus("Fetching images from Worker...");
+  setStatus("Fetching images from listing...");
 
   try {
     const res = await fetch(WORKER_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({ url })
     });
 
     const data = await res.json();
 
-    if (!res.ok) throw new Error(data.error || "Worker error");
+    if (!res.ok) {
+      throw new Error(data.error || "Worker failed");
+    }
 
     const images = data.images || [];
 
     if (!images.length) {
-      setStatus("No images found");
+      setStatus("No images found (site may be blocked)");
       return;
     }
 
     images.forEach(src => {
       const div = document.createElement("div");
       div.className = "thumb";
-      div.innerHTML = `<img src="${src}">`;
+      div.innerHTML = `<img src="${src}" />`;
       grid.appendChild(div);
     });
 
     setStatus(`Loaded ${images.length} images`);
 
-  } catch (err) {
-    console.error(err);
-    setStatus("Error: " + err.message);
+  } catch (e) {
+    console.error(e);
+    setStatus("Error: " + e.message);
   }
 }
 
