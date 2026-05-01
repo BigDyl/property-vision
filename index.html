@@ -530,6 +530,55 @@
     .debug-warn { color: #b06010; }
     .debug-err  { color: #bf4122; }
 
+    /* ─── ADVANCED ACCORDION ─────────────────────── */
+    .advanced-wrap { border: none; margin-top: 14px; }
+    .advanced-toggle {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--teal);
+      cursor: pointer;
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      letter-spacing: 0.04em;
+      user-select: none;
+    }
+    .advanced-toggle::-webkit-details-marker { display: none; }
+    .advanced-toggle::after { content: '▾'; font-size: 11px; transition: transform 0.2s; }
+    details[open] .advanced-toggle::after { transform: rotate(-180deg); }
+    .advanced-body {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ─── BUDGET SLIDER ──────────────────────────── */
+    .budget-slider-wrap { padding: 4px 0 8px; }
+    .budget-slider-wrap input[type="range"] {
+      width: 100%;
+      accent-color: var(--teal);
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      height: 4px;
+    }
+    .budget-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+    }
+    .budget-labels span {
+      font-size: 10px;
+      color: var(--muted);
+      font-weight: 500;
+      text-align: center;
+      flex: 1;
+    }
+    .budget-labels span:first-child { text-align: left; }
+    .budget-labels span:last-child  { text-align: right; }
+
     /* ─── PLACEHOLDER CARDS ──────────────────────── */
     .placeholder-card {
       background: var(--sand);
@@ -626,18 +675,10 @@
   <!-- ─── STEP 2 ─── -->
   <div class="card">
     <div class="step-badge"><span class="step-num">2</span> Style</div>
-    <div class="card-title">Renovation style</div>
+    <div class="card-title">Pick a style</div>
     <div class="field">
-      <label>What are these photos of?</label>
-      <div style="display:flex;gap:8px;margin-bottom:16px;">
-        <button class="pill active" id="mode-interior" onclick="setExteriorMode(false)">🛋 Interior rooms</button>
-        <button class="pill" id="mode-exterior" onclick="setExteriorMode(true)">🏡 Exterior / garden</button>
-      </div>
-    </div>
-    <div class="field">
-      <label>Choose a style</label>
       <select id="style" onchange="onStyleChange()">
-        <option value="">— Pick a style —</option>
+        <option value="">— Choose a design style —</option>
         <option value="modern">Modern Minimalist</option>
         <option value="scandi">Scandi / Nordic</option>
         <option value="industrial">Industrial Loft</option>
@@ -648,43 +689,47 @@
         <option value="victorian">Victorian Restored</option>
       </select>
     </div>
-    <div class="field">
-      <label>Room type <span style="font-weight:400;text-transform:none;letter-spacing:0">— helps the AI stay faithful to the space</span></label>
-      <select id="room-type">
-        <option value="">— Select room type —</option>
-        <option value="living room">Living room</option>
-        <option value="kitchen">Kitchen</option>
-        <option value="kitchen-diner">Kitchen / diner</option>
-        <option value="dining room">Dining room</option>
-        <option value="bedroom">Bedroom</option>
-        <option value="bathroom">Bathroom</option>
-        <option value="en-suite">En-suite bathroom</option>
-        <option value="hallway">Hallway / entrance</option>
-        <option value="home office">Home office / study</option>
-        <option value="exterior">Exterior / garden</option>
-        <option value="mixed">Mixed / multiple rooms</option>
-      </select>
-    </div>
-    <div id="prompt-wrap" style="display:none">
-      <div class="field">
-        <label>Prompt <span style="font-weight:400;text-transform:none;letter-spacing:0">— edit freely</span></label>
-        <textarea id="prompt" rows="4"></textarea>
-        <p class="prompt-hint">Sent directly to the AI model. Tweak it to shape the output.</p>
-      </div>
-    </div>
-  </div>
 
-  <!-- ─── STEP 3 ─── -->
-  <div class="card">
-    <div class="step-badge"><span class="step-num">3</span> Budget</div>
-    <div class="card-title">Renovation budget</div>
-    <div class="pills">
-      <button class="pill" onclick="setBudget(this,'10k')">£10k</button>
-      <button class="pill" onclick="setBudget(this,'25k')">£25k</button>
-      <button class="pill" onclick="setBudget(this,'50k')">£50k</button>
-      <button class="pill" onclick="setBudget(this,'100k+')">£100k+</button>
-    </div>
-    <div class="budget-desc" id="budget-desc"></div>
+    <!-- Advanced accordion -->
+    <details class="advanced-wrap" id="advanced-details">
+      <summary class="advanced-toggle">Advanced options</summary>
+      <div class="advanced-body">
+        <div class="field">
+          <label>Property type</label>
+          <select id="property-type">
+            <option value="">Not specified</option>
+            <option value="Victorian terrace">Victorian terrace</option>
+            <option value="Edwardian semi-detached">Edwardian semi-detached</option>
+            <option value="Georgian townhouse">Georgian townhouse</option>
+            <option value="Period cottage">Period cottage</option>
+            <option value="Barn conversion">Barn conversion</option>
+            <option value="Modern new-build">Modern new-build</option>
+            <option value="1960s–80s detached">1960s–80s detached</option>
+            <option value="Modern flat or apartment">Modern flat or apartment</option>
+            <option value="Studio flat">Studio flat</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Renovation scope</label>
+          <div class="budget-slider-wrap">
+            <input type="range" id="budget-range" min="0" max="3" step="1" value="1"
+              oninput="onBudgetSlide(this.value)" />
+            <div class="budget-labels">
+              <span>Light touch</span>
+              <span>Refresh</span>
+              <span>Full renovation</span>
+              <span>Top to bottom</span>
+            </div>
+          </div>
+          <div class="budget-desc" id="budget-desc">Refresh — meaningful surface-level changes, high visual impact.</div>
+        </div>
+        <div class="field">
+          <label>Prompt <span style="font-weight:400;text-transform:none;letter-spacing:0">— edit freely</span></label>
+          <textarea id="prompt" rows="5" placeholder="Select a style above to generate a prompt…"></textarea>
+          <p class="prompt-hint">This is sent directly to the AI. Edit it to fine-tune the result.</p>
+        </div>
+      </div>
+    </details>
   </div>
 
   <!-- ─── GENERATE ─── -->
@@ -737,6 +782,7 @@
 // ═══════════════════════════════════════════════
 const S = { images: [], budget: null, lastAfterUrl: null };
 const MAX_SEL = 5;
+let exteriorMode = false; // kept for reset compatibility
 
 // ═══════════════════════════════════════════════
 // THUMBNAILS — multi-select up to MAX_SEL
@@ -898,94 +944,67 @@ dz.addEventListener('drop', e => {
 // ═══════════════════════════════════════════════
 // STYLE PROMPTS
 // ═══════════════════════════════════════════════
-const STYLE_FLAVOURS = {
-  modern:     'modern minimalist: clean lines, warm white and stone tones, natural oak, concealed storage, pared-back fixtures and fittings',
-  scandi:     'Scandinavian / Nordic: light birch wood, white walls, linen textures, simple crafted furniture, warm ambient lighting, indoor plants',
-  industrial: 'industrial loft: exposed brick or raw concrete, dark steel, reclaimed timber, Edison bulb pendants, utilitarian fittings',
-  country:    'English country cottage: warm stone and aged timber, heritage paint colours, floral soft furnishings, reclaimed wood, period character',
-  maximalist: 'maximalist eclectic: rich jewel tones, layered textures, gallery-wall display, velvet, brass and gold accents',
-  artdeco:    'Art Deco: geometric patterns, lacquered black and gold, mirrored surfaces, velvet, fan-shaped detailing, glamorous lighting',
-  japandi:    'Japandi: Japanese wabi-sabi minimalism meets Scandi warmth, natural textures, muted earthy palette, low-profile furniture, simple botanicals',
-  victorian:  'restored Victorian: ornate cornicing, encaustic or parquet floors, cast-iron fireplace, dado rail, Farrow & Ball heritage colours',
+const STYLE_DESCRIPTIONS = {
+  modern:     'modern minimalist — clean lines, warm whites and natural stone, oak and concrete, pared-back fixtures, concealed storage',
+  scandi:     'Scandinavian / Nordic — light birch, linen and wool textures, simple crafted furniture, warm ambient light, botanicals',
+  industrial: 'industrial loft — exposed brick or concrete, dark steel, reclaimed timber, Edison pendants, utilitarian fittings',
+  country:    'English country cottage — warm stone and aged timber, heritage paint colours, floral textiles, reclaimed wood, period charm',
+  maximalist: 'maximalist eclectic — rich jewel tones, layered pattern and texture, gallery-wall display, velvet, brass accents',
+  artdeco:    'Art Deco — geometric pattern, lacquered black and polished gold, mirrored surfaces, velvet, fan motifs, glamorous lighting',
+  japandi:    'Japandi — wabi-sabi minimalism meets Nordic warmth, natural materials, muted earthy palette, low-profile furniture',
+  victorian:  'restored Victorian — ornate cornicing, encaustic or parquet floors, cast-iron fireplace, dado rail, Farrow & Ball colours',
 };
 
-// Interior prompt — defers to image, never prescribes room type
-const INTERIOR_PROMPTS = Object.fromEntries(
-  Object.entries(STYLE_FLAVOURS).map(([k, v]) => [k,
-    `Apply a ${v} finish to this room interior. Update only the decorative surfaces: wall colour/finish, flooring, furniture, soft furnishings, light fittings, and decorative objects.`
-  ])
-);
+const BUDGET_SCOPE = [
+  'Keep changes light and cosmetic — paint, soft furnishings, small fixture swaps only.',
+  'A meaningful surface-level refresh — update finishes and fittings for high visual impact.',
+  'A full renovation — replace major elements, upgrade throughout to a consistent quality.',
+  'A comprehensive top-to-bottom transformation — premium materials, everything considered.',
+];
 
-// Exterior prompt — entirely different task
-const EXTERIOR_PROMPTS = Object.fromEntries(
-  Object.entries(STYLE_FLAVOURS).map(([k, v]) => [k,
-    `Refresh the exterior of this property in a ${v} style. Update only: exterior paint or render colour, front door colour and style, garden planting, path and driveway materials, boundary treatments, and outdoor lighting. Do not alter anything else.`
-  ])
-);
+const BUDGET_DESCS = [
+  'Light touch — paint, soft furnishings, minor swaps.',
+  'Refresh — meaningful surface-level changes, high visual impact.',
+  'Full renovation — major elements replaced, upgraded throughout.',
+  'Top to bottom — premium materials, comprehensive transformation.',
+];
 
-const BUDGET_DESCS = {
-  '10k':  'Cosmetic only — fresh paint, new fixtures, soft furnishings, minor swaps.',
-  '25k':  'Moderate — kitchen refresh, new flooring, bathroom update, redecoration.',
-  '50k':  'Significant — full kitchen, new bathroom, flooring, windows, replastering.',
-  '100k+':'Full renovation — structural work, premium kitchen and bathrooms, all systems, top-spec finishes.',
-};
+// ─── PROMPT BUILDER ───────────────────────────────────────────────
+function buildPrompt(style, budgetIdx, propertyType) {
+  if (!style) return '';
+  const styleDesc    = STYLE_DESCRIPTIONS[style] || style;
+  const budgetLine   = BUDGET_SCOPE[budgetIdx ?? 1];
+  const propertyLine = propertyType ? `This is a ${propertyType}.` : '';
 
-const BUDGET_PROMPTS = {
-  '10k':  'This is a light-touch, low-budget refresh. Stick to paint, soft furnishings, and swapping small fixtures only.',
-  '25k':  'This is a moderate refresh. Focus on surface-level changes that have high visual impact.',
-  '50k':  'This is a meaningful renovation. Show clearly upgraded finishes and fittings.',
-  '100k+':'This is a high-spec full renovation. Show premium materials and a thorough transformation.',
-};
-
-// ─── SYSTEM CONSTRAINTS ──────────────────────────────────────────
-// Written as explicit DO NOTs — GPT-image-1 follows these far more reliably
-// than positive instructions alone.
-const INTERIOR_CONSTRAINTS = [
-  'DO NOT change the size, shape, position, or number of windows.',
-  'DO NOT change the size, shape, position, or style of any doors.',
-  'DO NOT raise or lower the ceiling.',
-  'DO NOT remove, add, or move walls.',
-  'DO NOT change the footprint or layout of the room.',
-  'DO NOT add rooms, spaces, or features that do not exist in the original photo.',
-  'Maintain the exact same camera angle, perspective, and field of view.',
-  'The output must look like a real photograph of the same room — not a CGI render, illustration, or staged showroom.',
-].join(' ');
-
-const EXTERIOR_CONSTRAINTS = [
-  'DO NOT change the shape, size, or position of any windows.',
-  'DO NOT change the roofline, chimney stacks, or structural form of the building.',
-  'DO NOT add extensions, new floors, or structural changes.',
-  'DO NOT move the building or alter its orientation.',
-  'Maintain the exact same camera angle, perspective, and field of view.',
-  'The output must look like a real photograph.',
-].join(' ');
-
-function buildPrompt(stylePrompt, budget, isExterior) {
-  const budgetCtx     = budget ? `Budget context: ${BUDGET_PROMPTS[budget]}` : '';
-  const constraints   = isExterior ? EXTERIOR_CONSTRAINTS : INTERIOR_CONSTRAINTS;
-  return `${stylePrompt} ${budgetCtx} ${constraints}`.trim();
+  return [
+    `You are an interior design expert. ${propertyLine}`,
+    `Study this image carefully and apply a considered renovation in a ${styleDesc} aesthetic.`,
+    `Develop a coherent design language for this specific space — think about furniture, colours, lighting, and finishes that work together.`,
+    `Maximise the feeling of natural light, space, and liveability.`,
+    `${budgetLine}`,
+    `Do not make structural changes — keep all windows, doors, walls, and ceiling height exactly as they are in this image.`,
+    `You may suggest changes to furniture layout within the existing space.`,
+  ].join(' ');
 }
 
-// ─── EXTERIOR MODE TOGGLE ─────────────────────────────────────────
-// Stored globally — set by the toggle in Step 2
-let exteriorMode = false;
-function setExteriorMode(isExt) {
-  exteriorMode = isExt;
-  const intBtn = document.getElementById('mode-interior');
-  const extBtn = document.getElementById('mode-exterior');
-  intBtn.classList.toggle('active', !isExt);
-  extBtn.classList.toggle('active', isExt);
-  // Refresh prompt textarea if style already selected
-  const style = document.getElementById('style').value;
-  if (style) {
-    document.getElementById('prompt').value = isExt ? EXTERIOR_PROMPTS[style] : INTERIOR_PROMPTS[style];
-  }
+// ─── BUDGET SLIDER ────────────────────────────────────────────────
+let budgetIdx = 1; // default: Refresh
+function onBudgetSlide(v) {
+  budgetIdx = parseInt(v);
+  document.getElementById('budget-desc').textContent = BUDGET_DESCS[budgetIdx];
+  refreshPrompt();
 }
 
 function onStyleChange() {
-  const v = document.getElementById('style').value;
-  document.getElementById('prompt-wrap').style.display = v ? 'block' : 'none';
-  if (v) document.getElementById('prompt').value = exteriorMode ? EXTERIOR_PROMPTS[v] : INTERIOR_PROMPTS[v];
+  refreshPrompt();
+}
+
+function refreshPrompt() {
+  const style    = document.getElementById('style').value;
+  const propType = document.getElementById('property-type')?.value || '';
+  if (style) {
+    document.getElementById('prompt').value = buildPrompt(style, budgetIdx, propType);
+  }
 }
 
 function setBudget(el, v) {
@@ -1001,10 +1020,12 @@ function setBudget(el, v) {
 async function generate() {
   if (!S.images.length)  return alert('Please select at least one image (Step 1).');
   if (!document.getElementById('style').value) return alert('Please choose a style (Step 2).');
-  if (!S.budget)         return alert('Please select a budget (Step 3).');
 
-  const stylePrompt = document.getElementById('prompt').value.trim();
-  const fullPrompt  = buildPrompt(stylePrompt, S.budget, exteriorMode);
+  const style      = document.getElementById('style').value;
+  const propType   = document.getElementById('property-type')?.value || '';
+  const promptText = document.getElementById('prompt').value.trim()
+    || buildPrompt(style, budgetIdx, propType);
+  const fullPrompt = promptText;
   const total       = S.images.length;
 
   document.getElementById('form-wrap').style.display = 'none';
@@ -1162,13 +1183,12 @@ function resetAll() {
   if (sc) sc.classList.remove('show');
   if (uc) uc.classList.remove('show');
   document.getElementById('style').value = '';
-  document.getElementById('room-type').value = '';
-  document.getElementById('prompt-wrap').style.display = 'none';
-  document.getElementById('budget-desc').textContent = '';
-  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  document.getElementById('prompt').value = '';
+  if (document.getElementById('property-type')) document.getElementById('property-type').value = '';
+  if (document.getElementById('budget-range'))  document.getElementById('budget-range').value  = '1';
+  document.getElementById('budget-desc').textContent = BUDGET_DESCS[1];
+  budgetIdx = 1;
   exteriorMode = false;
-  document.getElementById('mode-interior').classList.add('active');
-  document.getElementById('mode-exterior').classList.remove('active');
   document.getElementById('form-wrap').style.display = 'block';
   document.getElementById('gen-btn').disabled = false;
   S.images = []; S.budget = null; S.lastAfterUrl = null;
