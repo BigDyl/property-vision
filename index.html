@@ -1,196 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Property Vision</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: DM Sans, sans-serif; margin:0; padding:20px; background:#f7f3ec; }
+    .card { background:#fff; padding:20px; border-radius:10px; max-width:800px; margin:20px auto; }
+    .btn { padding:10px 15px; cursor:pointer; }
+    .thumb { width:120px; height:90px; background:#ddd; margin:5px; display:inline-block; }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <h2>Property Vision (Debug Stable Version)</h2>
+
+  <input id="api-key" type="password" placeholder="OpenAI API Key" />
+
+  <br><br>
+
+  <input id="listing-url" type="text" placeholder="Paste listing URL" />
+  <button onclick="fetchImages()">Extract images</button>
+
+  <div id="url-grid"></div>
+</div>
+
 <script>
-// ===================== STATE =====================
-const S = { images: [], budget: null, lastAfterUrl: null };
-const MAX_SEL = 5;
+/* =========================
+   GLOBAL STATE
+========================= */
+const S = {
+  images: []
+};
 
-// ===================== API KEY =====================
-function saveKey() {
-  const v = document.getElementById('api-key').value.trim();
-  localStorage.setItem('pv_key', v);
-}
-
-function getKey() {
-  return document.getElementById('api-key').value.trim()
-    || localStorage.getItem('pv_key') || '';
-}
-
-function initApp() {
+/* =========================
+   SAFE INIT (CRITICAL FIX)
+========================= */
+function init() {
   const apiKeyInput = document.getElementById('api-key');
-  if (!apiKeyInput) return;
-
-  apiKeyInput.value = localStorage.getItem('pv_key') || '';
-
-  // bind events safely after DOM exists
-  apiKeyInput.addEventListener('input', saveKey);
-}
-
-document.addEventListener('DOMContentLoaded', initApp);
-
-// ===================== TABS =====================
-function switchTab(t) {
-  document.querySelectorAll('.tab').forEach((el, i) => {
-    el.classList.toggle('active', (t === 'url' && i === 0) || (t === 'upload' && i === 1));
-  });
-
-  document.getElementById('tab-url').classList.toggle('active', t === 'url');
-  document.getElementById('tab-upload').classList.toggle('active', t === 'upload');
-}
-
-// ===================== IMAGE SELECTION =====================
-function addThumb(grid, url, src) {
-  const div = document.createElement('div');
-  div.className = 'thumb';
-  div.innerHTML = `<img src="${url}"><div class="tick">✓</div><div class="num"></div>`;
-  div.onclick = () => toggleThumb(div, url, src);
-  grid.appendChild(div);
-}
-
-function toggleThumb(div, url, src) {
-  if (div.classList.contains('selected')) {
-    div.classList.remove('selected');
-    S.images = S.images.filter(x => x !== url);
-  } else {
-    if (S.images.length >= MAX_SEL) return;
-    div.classList.add('selected');
-    S.images.push(url);
+  if (apiKeyInput) {
+    apiKeyInput.value = localStorage.getItem('pv_key') || '';
+    apiKeyInput.addEventListener('input', () => {
+      localStorage.setItem('pv_key', apiKeyInput.value);
+    });
   }
-
-  let i = 0;
-  document.querySelectorAll('.thumb.selected .num').forEach(el => {
-    el.textContent = ++i;
-  });
 }
 
-// ===================== LISTING IMAGE FETCH =====================
+document.addEventListener('DOMContentLoaded', init);
+
+/* =========================
+   STATUS SAFE HELPER
+========================= */
+function setStatus(msg) {
+  console.log('[STATUS]', msg);
+}
+
+/* =========================
+   IMAGE FETCH (SIMPLIFIED TEST VERSION)
+   (we will plug real worker next step)
+========================= */
 async function fetchImages() {
-  const url = document.getElementById('listing-url').value.trim();
-  const status = document.getElementById('url-status');
+  const url = document.getElementById('listing-url').value;
   const grid = document.getElementById('url-grid');
 
-  if (!url) {
-    status.textContent = "Please enter a URL";
-    status.className = "status err show";
-    return;
-  }
+  if (!url) return alert('Paste a URL');
 
-  status.textContent = "Fetching images...";
-  status.className = "status info show";
-  grid.innerHTML = "";
-
-  try {
-    const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-    const data = await r.json();
-    const html = data.contents;
-
-    const imgs = [...html.matchAll(/https:\/\/media\.rightmove\.co\.uk\/[^\"]+\.jpg/gi)]
-      .map(m => m[0]);
-
-    if (!imgs.length) {
-      status.textContent = "No images found";
-      status.className = "status err show";
-      return;
-    }
-
-    imgs.slice(0, 12).forEach(u => addThumb(grid, u, 'url'));
-
-    status.textContent = `Found ${imgs.length} images`;
-    status.className = "status ok show";
-
-  } catch (e) {
-    status.textContent = "Failed to fetch listing";
-    status.className = "status err show";
-    console.error(e);
-  }
-}
-
-// ===================== UPLOAD =====================
-function handleUpload(input) {
-  const grid = document.getElementById('upload-grid');
   grid.innerHTML = '';
+  setStatus('Fetching (placeholder mode)...');
 
-  [...input.files].forEach(file => {
-    const r = new FileReader();
-    r.onload = e => addThumb(grid, e.target.result, 'upload');
-    r.readAsDataURL(file);
-  });
-}
+  // TEMP MOCK so UI works first
+  const fakeImages = [
+    'https://via.placeholder.com/400x300',
+    'https://via.placeholder.com/400x301',
+    'https://via.placeholder.com/400x302'
+  ];
 
-// ===================== BUDGET =====================
-function setBudget(el, v) {
-  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-  S.budget = v;
-}
-
-// ===================== PROMPT BUILDER =====================
-function buildPrompt(style, budget) {
-  return `Restyle this room in ${style} style. Budget: ${budget}. Keep structure unchanged.`;
-}
-
-// ===================== GENERATE =====================
-async function generate() {
-  if (!S.images.length) return alert("Select images first");
-  if (!S.budget) return alert("Select budget");
-  if (!getKey()) return alert("Enter API key");
-
-  const prompt = buildPrompt(
-    document.getElementById('style').value,
-    S.budget
-  );
-
-  document.getElementById('form-wrap').style.display = 'none';
-  document.getElementById('loading').classList.add('show');
-
-  const results = document.getElementById('results-list');
-  results.innerHTML = '';
-
-  for (let img of S.images) {
-    const after = await callWorker(img, prompt);
-
+  fakeImages.forEach(src => {
     const div = document.createElement('div');
-    div.className = 'result-item';
-    div.innerHTML = `
-      <div class="result-label">Result</div>
-      <div class="compare-wrap">
-        <img class="cmp-before" src="${img}">
-        <div class="cmp-after-wrap" style="clip-path:inset(0 50% 0 0)">
-          <img class="cmp-after" src="${after}">
-        </div>
-      </div>
-    `;
-
-    results.appendChild(div);
-  }
-
-  document.getElementById('loading').classList.remove('show');
-  document.getElementById('results').classList.add('show');
-}
-
-// ===================== CLOUDLFARE WORKER CALL =====================
-async function callWorker(image, prompt) {
-  const blob = await (await fetch(image)).blob();
-
-  const form = new FormData();
-  form.append("image", blob, "room.png");
-  form.append("prompt", prompt);
-
-  const r = await fetch("https://property-vision-api.dylangeorgesmythe.workers.dev/", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${getKey()}`
-    },
-    body: form
+    div.className = 'thumb';
+    div.innerHTML = `<img src="${src}" width="120">`;
+    grid.appendChild(div);
   });
 
-  const data = await r.json();
-
-  if (!r.ok) throw new Error(JSON.stringify(data));
-
-  return `data:image/png;base64,${data.image}`;
-}
-
-// ===================== RESET =====================
-function resetAll() {
-  location.reload();
+  setStatus('Loaded placeholder images');
 }
 </script>
+
+</body>
+</html>
