@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Property Vision — See what this house could be</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy:   #0e1c36;
+      --cream:  #f7f3ec;
+      --sand:   #ede7db;
+      --warm:   #e2d9cc;
+      --burnt:  #c85a1e;
+      --burnt2: #a84918;
+      --teal:   #1a5c6b;
+      --muted:  #7a7060;
+      --border: #d5cdc1;
+      --text:   #1a1510;
+      --card:   #ffffff;
+      --r: 10px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--cream);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ─── HEADER ─────────────────────────────────────── */
+    .header {
+      background: var(--navy);
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 80% at 80% 110%, rgba(200,90,30,0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 60% at 10% -20%, rgba(26,92,107,0.25) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    .header-inner {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 36px 28px 56px;
+      position: relative;
+    }
+    .logo {
+      font-family: 'DM Serif Display', serif;
+      font-size: 16px;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 0.04em;
+      margin-bottom: 32px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .logo-dot {
+      width: 6px; height: 6px;
+      background: var(--burnt);
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .hero-eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--burnt);
+      margin-bottom: 14px;
+    }
+    .hero-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(34px, 6vw, 58px);
+      line-height: 1.1;
+      color: #fff;
+      margin-bottom: 18px;
+    }
+    .hero-title em { color: rgba(255,255,255,0.55); font-style: italic; }
+    .hero-sub {
+      font-size: 17px;
+      font-weight: 300;
+      color: rgba(255,255,255,0.60);
+      line-height: 1.65;
+      max-width: 480px;
+    }
+
+    /* ─── LAYOUT ─────────────────────────────────────── */
+    .main {
+      max-width: 880px;
+      margin: -18px auto 80px;
+      padding: 0 28px;
+    }
+
+    /* ─── API KEY BAR ────────────────────────────────── */
+    .api-bar {
+      background: #fffdf9;
+      border: 1px solid #edd9b8;
+      border-radius: var(--r);
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .api-bar-icon { font-size: 20px; flex-shrink: 0; }
+    .api-bar-text { flex: 1; min-width: 0; }
+    .api-bar-title { font-size: 13px; font-weight: 600; color: #7a4c10; margin-bottom: 2px; }
+    .api-bar-note { font-size: 11px; color: #a06020; }
+    .api-bar-note a { color: var(--teal); }
+    .api-key-input {
+      flex: 1;
+      min-width: 200px;
+      max-width: 300px;
+      padding: 9px 13px;
+      border: 1px solid #ddd0bc;
+      border-radius: 7px;
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .api-key-input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(26,92,107,0.12); }
+
+    /* ─── CARDS ──────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border-radius: var(--r);
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 6px 20px rgba(0,0,0,0.03);
+      padding: 26px;
+      margin-bottom: 14px;
+    }
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--burnt);
+      margin-bottom: 6px;
+    }
+    .step-num {
+      width: 17px; height: 17px;
+      background: var(--burnt);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: 700;
+    }
+    .card-title { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+
+    /* ─── TABS ───────────────────────────────────────── */
+    .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 20px; gap: 0; }
+    .tab {
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      cursor: pointer;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--navy); border-bottom-color: var(--navy); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ─── FORM ELEMENTS ──────────────────────────────── */
+    .field { margin-bottom: 16px; }
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+    }
+    input[type="url"], select, textarea {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--cream);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type="url"]:focus, select:focus, textarea:focus {
+      border-color: var(--teal);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(26,92,107,0.1);
+    }
+    select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237a7060' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-color: var(--cream);
+      padding-right: 36px;
+    }
+    textarea { resize: vertical; min-height: 90px; line-height: 1.6; font-size: 13px; }
+
+    .input-row { display: flex; gap: 8px; }
+    .input-row input { flex: 1; }
+
+    /* ─── BUTTONS ────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 10px 18px;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      font-family: inherit;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--burnt); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--burnt2); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(200,90,30,0.3); }
+    .btn-primary:active { transform: none; }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover { background: var(--sand); }
+    .btn-sm { padding: 8px 14px; font-size: 13px; }
+    .btn-full { width: 100%; padding: 15px; font-size: 15px; font-weight: 600; border-radius: 9px; }
+
+    /* ─── UPLOAD ─────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 9px;
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s;
+      background: var(--cream);
+    }
+    .drop-zone:hover, .drop-zone.over { border-color: var(--teal); background: rgba(26,92,107,0.04); }
+    .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .drop-icon { font-size: 26px; margin-bottom: 10px; }
+    .drop-text { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+    .drop-hint { font-size: 12px; color: var(--muted); }
+
+    /* ─── IMAGE GRID ─────────────────────────────────── */
+    .img-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .thumb {
+      aspect-ratio: 4/3;
+      border-radius: 7px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2.5px solid transparent;
+      position: relative;
+      background: var(--sand);
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .thumb:hover { transform: scale(1.02); }
+    .thumb.selected { border-color: var(--teal); }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .thumb .tick {
+      position: absolute;
+      top: 4px; right: 4px;
+      width: 19px; height: 19px;
+      background: var(--teal);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 10px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .thumb.selected .tick { display: flex; }
+
+    /* ─── STATUS ─────────────────────────────────────── */
+    .status { padding: 10px 14px; border-radius: 7px; font-size: 13px; margin-top: 10px; display: none; }
+    .status.show { display: block; }
+    .status.info { background: #edf5f7; color: var(--teal); }
+    .status.ok   { background: #edf7ef; color: #267a40; }
+    .status.err  { background: #fdf0eb; color: #bf4122; }
+
+    /* ─── BUDGET PILLS ───────────────────────────────── */
+    .pills { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pill {
+      padding: 8px 18px;
+      border: 1.5px solid var(--border);
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      background: #fff;
+      color: var(--text);
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .pill:hover { border-color: var(--burnt); color: var(--burnt); }
+    .pill.active { background: var(--burnt); border-color: var(--burnt); color: #fff; }
+    .budget-desc { font-size: 12px; color: var(--muted); margin-top: 10px; min-height: 16px; font-style: italic; }
+
+    .prompt-hint { font-size: 12px; color: var(--muted); margin-top: 6px; font-style: italic; }
+
+    /* ─── LOADING ────────────────────────────────────── */
+    .loading { display: none; text-align: center; padding: 48px; }
+    .loading.show { display: block; }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--warm);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+    .loading-sub { font-size: 13px; color: var(--muted); }
+    .loading-steps { display: flex; justify-content: center; gap: 6px; margin-top: 20px; flex-wrap: wrap; }
+    .loading-step {
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--sand);
+      color: var(--muted);
+      transition: all 0.4s;
+    }
+    .loading-step.active { background: var(--teal); color: #fff; }
+
+    /* ─── RESULTS ────────────────────────────────────── */
+    .results { display: none; }
+    .results.show { display: block; }
+    .results-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 12px;
+    }
+    .results-kicker { font-size: 12px; font-weight: 600; color: var(--teal); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px; }
+    .results-title { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--navy); }
+
+    /* ─── COMPARISON SLIDER ──────────────────────────── */
+    .compare-wrap {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.14);
+      user-select: none;
+      cursor: col-resize;
+      background: var(--sand);
+    }
+    .cmp-before { display: block; width: 100%; height: auto; }
+    .cmp-after-wrap {
+      position: absolute;
+      inset: 0;
+      clip-path: inset(0 50% 0 0);
+    }
+    .cmp-after { display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top; }
+    .cmp-line {
+      position: absolute;
+      top: 0; bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      background: rgba(255,255,255,0.85);
+      pointer-events: none;
+    }
+    .cmp-handle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 38px; height: 38px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      font-size: 14px;
+    }
+    .cmp-badge {
+      position: absolute;
+      bottom: 12px;
+      padding: 4px 10px;
+      background: rgba(14,28,54,0.65);
+      backdrop-filter: blur(6px);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 100px;
+      pointer-events: none;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .cmp-badge-before { left: 12px; }
+    .cmp-badge-after  { right: 12px; }
+    .cmp-range {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: col-resize;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+    }
+
+    /* ─── SHARE ──────────────────────────────────────── */
+    .share-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .share-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 15px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      color: #fff;
+      font-family: inherit;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .share-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .share-x  { background: #111; }
+    .share-wa { background: #25d366; }
+    .share-dl { background: var(--teal); }
+    .disclaimer { font-size: 11px; color: var(--muted); margin-top: 12px; line-height: 1.5; }
+
+    /* ─── RESPONSIVE ─────────────────────────────────── */
+    @media (max-width: 600px) {
+      .header-inner { padding: 28px 20px 48px; }
+      .main { padding: 0 16px; }
+      .card { padding: 20px; }
+      .api-bar { flex-direction: column; }
+      .api-key-input { max-width: 100%; }
+      .input-row { flex-direction: column; }
+      .input-row .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─────────── HEADER ─────────── -->
+<header class="header">
+  <div class="header-inner">
+    <div class="logo"><span class="logo-dot"></span> Property Vision</div>
+    <p class="hero-eyebrow">AI renovation visualiser</p>
+    <h1 class="hero-title">See what this house<br><em>could be.</em></h1>
+    <p class="hero-sub">Paste any Rightmove or Zoopla listing. Pick a style and budget. Get a before &amp; after render in 30 seconds.</p>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- ─── API KEY ─── -->
+  <div class="api-bar">
+    <div class="api-bar-icon">🔑</div>
+    <div class="api-bar-text">
+      <div class="api-bar-title">fal.ai API key required</div>
+      <div class="api-bar-note">Stored in your browser only. Free to get at <a href="https://fal.ai" target="_blank">fal.ai</a> — ~£0.05–0.10 per render.</div>
+    </div>
+    <input class="api-key-input" type="password" id="api-key" placeholder="fal_..." oninput="saveKey()" />
+  </div>
+
+  <!-- ─── STEP 1 ─── -->
+  <div class="card">
+    <div class="step-badge"><span class="step-num">1</span> Get images</div>
+    <div class="card-title">Property images</div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('url')">Paste listing URL</button>
+      <button class="tab" onclick="switchTab('upload')">Upload photos</button>
+    </div>
+
+    <!-- URL tab -->
+    <div class="tab-panel active" id="tab-url">
+      <div class="field">
+        <label>Rightmove or Zoopla listing URL</label>
+        <div class="input-row">
+          <input type="url" id="listing-url" placeholder="https://www.rightmove.co.uk/properties/..." />
+          <button class="btn btn-ghost btn-sm" onclick="fetchImages()">Extract images</button>
+        </div>
+      </div>
+      <div class="status" id="url-status"></div>
+      <div class="img-grid" id="url-grid"></div>
+    </div>
+
+    <!-- Upload tab -->
+    <div class="tab-panel" id="tab-upload">
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept="image/*" multiple onchange="handleUpload(this)" />
+        <div class="drop-icon">📷</div>
+        <div class="drop-text">Drop photos here or click to browse</div>
+        <div class="drop-hint">JPEG or PNG — one or more room photos</div>
+      </div>
+      <div class="img-grid" id="upload-grid"></div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 2 ─── -->
+  <div class="card">
+    <div class="step-badge"><span class="step-num">2</span> Style</div>
+    <div class="card-title">Renovation style</div>
+    <div class="field">
+      <label>Choose a style</label>
+      <select id="style" onchange="onStyleChange()">
+        <option value="">— Pick a style —</option>
+        <option value="modern">Modern Minimalist</option>
+        <option value="scandi">Scandi / Nordic</option>
+        <option value="industrial">Industrial Loft</option>
+        <option value="country">Country / Cottage</option>
+        <option value="maximalist">Maximalist Eclectic</option>
+        <option value="artdeco">Art Deco</option>
+        <option value="japandi">Japandi</option>
+        <option value="victorian">Victorian Restored</option>
+      </select>
+    </div>
+    <div id="prompt-wrap" style="display:none">
+      <div class="field">
+        <label>Prompt <span style="font-weight:400;text-transform:none;letter-spacing:0">— edit freely</span></label>
+        <textarea id="prompt" rows="4"></textarea>
+        <p class="prompt-hint">Sent directly to the AI model. Tweak it to shape the output.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 3 ─── -->
+  <div class="card">
+    <div class="step-badge"><span class="step-num">3</span> Budget</div>
+    <div class="card-title">Renovation budget</div>
+    <div class="pills">
+      <button class="pill" onclick="setBudget(this,'10k')">£10k</button>
+      <button class="pill" onclick="setBudget(this,'25k')">£25k</button>
+      <button class="pill" onclick="setBudget(this,'50k')">£50k</button>
+      <button class="pill" onclick="setBudget(this,'100k+')">£100k+</button>
+    </div>
+    <div class="budget-desc" id="budget-desc"></div>
+  </div>
+
+  <!-- ─── GENERATE ─── -->
+  <div class="card" style="padding:20px 26px; text-align:center;">
+    <button class="btn btn-primary btn-full" id="gen-btn" onclick="generate()">
+      ✨ &nbsp;Visualise renovation
+    </button>
+  </div>
+
+  <!-- ─── LOADING ─── -->
+  <div class="card loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-title">Generating your renovation…</div>
+    <div class="loading-sub" id="loading-sub">Takes 20–40 seconds. Good things take time.</div>
+    <div class="loading-steps">
+      <span class="loading-step active" id="ls-0">Sending to AI</span>
+      <span class="loading-step" id="ls-1">Analysing space</span>
+      <span class="loading-step" id="ls-2">Applying style</span>
+      <span class="loading-step" id="ls-3">Rendering</span>
+      <span class="loading-step" id="ls-4">Finishing touches</span>
+    </div>
+  </div>
+
+  <!-- ─── RESULTS ─── -->
+  <div class="card results" id="results">
+    <div class="results-header">
+      <div>
+        <div class="results-kicker">✓ Ready</div>
+        <div class="results-title">Before &amp; After</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="resetAll()">Try another</button>
+    </div>
+
+    <div class="compare-wrap" id="compare">
+      <img class="cmp-before" id="img-before" src="" alt="Before" />
+      <div class="cmp-after-wrap" id="after-wrap">
+        <img class="cmp-after" id="img-after" src="" alt="After" />
+      </div>
+      <div class="cmp-line" id="cmp-line"></div>
+      <div class="cmp-handle" id="cmp-handle">↔</div>
+      <span class="cmp-badge cmp-badge-before">Before</span>
+      <span class="cmp-badge cmp-badge-after">After</span>
+      <input type="range" min="0" max="100" value="50" class="cmp-range" id="cmp-range" oninput="slide(this.value)" />
+    </div>
+
+    <div class="share-row">
+      <button class="share-btn share-x"  onclick="shareX()">𝕏 &nbsp;Share on X</button>
+      <button class="share-btn share-wa" onclick="shareWA()">💬 &nbsp;WhatsApp</button>
+      <button class="share-btn share-dl" onclick="dlAfter()">⬇ &nbsp;Download render</button>
+    </div>
+    <p class="disclaimer">AI renders are illustrative only — not architectural drawings. Actual results will vary. Always consult a professional before making renovation decisions.</p>
+  </div>
+
+</main>
+
+<script>
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+const S = { image: null, budget: null, after: null };
+
+// ═══════════════════════════════════════════════
+// API KEY
+// ═══════════════════════════════════════════════
+function saveKey() {
+  const v = document.getElementById('api-key').value.trim();
+  localStorage.setItem('pv_key', v);
+}
+function getKey() {
+  return document.getElementById('api-key').value.trim()
+    || localStorage.getItem('pv_key') || '';
+}
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('api-key').value = localStorage.getItem('pv_key') || '';
+});
+
+// ═══════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════
+function switchTab(t) {
+  const tabs = document.querySelectorAll('.tab');
+  tabs[0].classList.toggle('active', t === 'url');
+  tabs[1].classList.toggle('active', t === 'upload');
+  document.getElementById('tab-url').classList.toggle('active', t === 'url');
+  document.getElementById('tab-upload').classList.toggle('active', t === 'upload');
+}
+
+// ═══════════════════════════════════════════════
+// URL FETCHING
+// ═══════════════════════════════════════════════
+async function fetchImages() {
+  const url = document.getElementById('listing-url').value.trim();
+  const st = document.getElementById('url-status');
+  const grid = document.getElementById('url-grid');
+  if (!url) return setStatus(st, 'Please paste a listing URL.', 'err');
+  setStatus(st, '🔍 Fetching listing…', 'info');
+  grid.innerHTML = '';
+  try {
+    const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+    const d = await r.json();
+    if (!d.contents) throw new Error('Empty');
+    const imgs = extractImgUrls(d.contents);
+    if (!imgs.length) {
+      setStatus(st, '⚠️ No images found automatically. Try the Upload tab instead.', 'err');
+      return;
+    }
+    setStatus(st, `✓ Found ${imgs.length} image${imgs.length > 1 ? 's' : ''} — click one to select it.`, 'ok');
+    imgs.slice(0, 14).forEach(u => addThumb(grid, u, 'url'));
+  } catch (e) {
+    setStatus(st, '⚠️ Couldn\'t fetch listing. Try the Upload tab — upload screenshots from the listing.', 'err');
+    console.error(e);
+  }
+}
+
+function extractImgUrls(html) {
+  const found = new Set();
+  // Rightmove __NEXT_DATA__ (best source — full image array)
+  const nd = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (nd) {
+    try {
+      const data = JSON.parse(nd[1]);
+      const imgs = data?.props?.pageProps?.propertyData?.images || [];
+      imgs.forEach(i => {
+        let u = i.srcUrl || i.url || i.src || '';
+        u = u.replace('{size}', 'max_800x600');
+        if (u.startsWith('http')) found.add(u.split('?')[0]);
+      });
+    } catch (e) {}
+  }
+  // og:image (any site)
+  for (const m of html.matchAll(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/g)) found.add(m[1]);
+  for (const m of html.matchAll(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/g)) found.add(m[1]);
+  // Rightmove CDN direct
+  for (const m of html.matchAll(/https:\/\/media\.rightmove\.co\.uk\/[^\s"'<>]+\.jpe?g/gi)) found.add(m[0].split('?')[0]);
+  // Zoopla CDN
+  for (const m of html.matchAll(/https:\/\/lid\.zoocdn\.com\/[^\s"'<>]+\.jpe?g/gi)) found.add(m[0].split('?')[0]);
+  return [...found].filter(u => u.startsWith('http'));
+}
+
+// ═══════════════════════════════════════════════
+// UPLOAD
+// ═══════════════════════════════════════════════
+function handleUpload(input) {
+  const grid = document.getElementById('upload-grid');
+  grid.innerHTML = '';
+  [...input.files].forEach((file, i) => {
+    const reader = new FileReader();
+    reader.onload = e => addThumb(grid, e.target.result, 'upload', i === 0);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Drag-and-drop
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('over');
+  const fi = document.getElementById('file-input');
+  fi.files = e.dataTransfer.files;
+  handleUpload(fi);
+});
+
+// ═══════════════════════════════════════════════
+// THUMBNAILS
+// ═══════════════════════════════════════════════
+function addThumb(grid, url, src, autoSelect = false) {
+  const div = document.createElement('div');
+  div.className = 'thumb';
+  div.innerHTML = `<img src="${url}" alt="" onerror="this.closest('.thumb').remove()" /><div class="tick">✓</div>`;
+  div.addEventListener('click', () => {
+    const gridId = src === 'url' ? 'url-grid' : 'upload-grid';
+    document.querySelectorAll(`#${gridId} .thumb`).forEach(t => t.classList.remove('selected'));
+    div.classList.add('selected');
+    S.image = url;
+  });
+  grid.appendChild(div);
+  if (autoSelect) { div.classList.add('selected'); S.image = url; }
+}
+
+// ═══════════════════════════════════════════════
+// STYLE PROMPTS
+// ═══════════════════════════════════════════════
+const PROMPTS = {
+  modern:
+    'Transform this room into a sleek modern minimalist interior. Clean lines, neutral palette of crisp white and warm grey, engineered oak or concrete flooring, concealed storage, statement pendant lighting. Replace all dated surfaces and fixtures with contemporary equivalents. Photorealistic high-end interior photography.',
+  scandi:
+    'Renovate this room in Scandi / Nordic style. Light birch wood, white walls, soft linen textures, hygge warmth. Simple crafted Scandinavian furniture, indoor botanicals, warm ambient lighting. Airy, calm, lived-in. Photorealistic interior photography.',
+  industrial:
+    'Transform this room into an industrial loft interior. Exposed brick or raw concrete, steel-frame windows, polished concrete or reclaimed wood plank flooring, Edison bulb pendants, dark matte metal fixtures. Raw but refined. Photorealistic interior photography.',
+  country:
+    'Renovate this room in English country cottage style. Warm limestone and aged timber tones, exposed beams, heritage Farrow & Ball paint colours, reclaimed wood detailing, floral and botanical soft furnishings, period fireplace. Cosy and characterful. Photorealistic.',
+  maximalist:
+    'Transform this room into a bold maximalist interior — rich jewel tones (deep emerald, sapphire, burnt amber), layered textures, gallery wall with ornate frames, velvet upholstery, brass and gold accents, sculptural furniture. Eclectic but curated. Photorealistic.',
+  artdeco:
+    'Renovate this room in Art Deco style. Geometric patterns, high-gloss black and polished gold accents, lacquered surfaces, velvet upholstery, mirrored panels, sunburst fan-shaped details, glamorous pendant lighting. Bold and luxurious. Photorealistic.',
+  japandi:
+    'Transform this room into a Japandi interior — Japanese wabi-sabi minimalism meets Scandinavian warmth. Natural textures: bamboo, raw linen, stone, pale oak. Muted earthy palette, low-profile furniture, a single bonsai or simple botanical. Serene and purposeful. Photorealistic.',
+  victorian:
+    'Restore this room beautifully with period Victorian details. Ornate cornicing and ceiling rose, restored sash windows, encaustic or parquet tile floor, cast-iron fireplace with original surround, dado rail with two-tone paint, Farrow & Ball heritage colours. Elegant and historically sympathetic. Photorealistic.',
+};
+
+const BUDGET_DESCS = {
+  '10k':  'Cosmetic only — fresh paint, new fixtures, soft furnishings, minor swaps.',
+  '25k':  'Moderate — kitchen refresh, new flooring, bathroom update, redecoration.',
+  '50k':  'Significant — full kitchen, new bathroom, flooring, windows, replastering.',
+  '100k+':'Full renovation — structural work, premium kitchen and bathrooms, all systems, top-spec finishes.',
+};
+
+const BUDGET_PROMPTS = {
+  '10k':  'This is a cosmetic renovation on a tight £10k budget: fresh paint, new light fittings, updated soft furnishings, minor fixture swaps only — no structural or major works.',
+  '25k':  'This is a moderate £25k renovation: kitchen refresh with new fronts and worktops, new flooring throughout, bathroom update with new suite, full redecoration.',
+  '50k':  'This is a significant £50k renovation: complete new kitchen, full bathroom replacement, new flooring, window replacements, replastering, new electrics and lighting.',
+  '100k+':'This is a full £100k+ renovation: structural works, premium bespoke kitchen, two bathrooms, underfloor heating, new heating system, high-end finishes and materials throughout.',
+};
+
+// ─── HIDDEN SYSTEM CONSTRAINTS ──────────────────────────────────
+// These are always injected into the final prompt — never shown to the user.
+// Edit this object to globally constrain every render the AI produces.
+const SYSTEM_CONSTRAINTS = [
+  // Structure & architecture
+  'Do not make any structural changes to the room unless the user explicitly requests them — keep all walls, windows, doors, and ceiling height exactly as they appear in the original photo.',
+  // Layout
+  'You may rearrange furniture and soft furnishings within the existing floor plan to improve the flow and feel of the space.',
+  // Realism
+  'The render must be photorealistic interior photography — not a sketch, illustration, or render. It should look like a real photograph of the finished room.',
+  // Perspective
+  'Maintain the exact same camera angle, perspective, and field of view as the original photo.',
+  // Scale
+  'Preserve the proportions and scale of the room accurately. Do not make the room appear larger or smaller than it is.',
+  // People & branding
+  'Do not include any people, pets, brand logos, or product labels in the render.',
+].join(' ');
+
+// Returns the complete prompt sent to the model — style + budget + hidden constraints
+function buildPrompt(stylePrompt, budget) {
+  const budgetContext = budget ? `Budget context: ${BUDGET_PROMPTS[budget]}` : '';
+  return `${stylePrompt} ${budgetContext} TECHNICAL REQUIREMENTS: ${SYSTEM_CONSTRAINTS}`.trim();
+}
+
+function onStyleChange() {
+  const v = document.getElementById('style').value;
+  document.getElementById('prompt-wrap').style.display = v ? 'block' : 'none';
+  if (v) document.getElementById('prompt').value = PROMPTS[v];
+}
+
+function setBudget(el, v) {
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  S.budget = v;
+  document.getElementById('budget-desc').textContent = BUDGET_DESCS[v];
+}
+
+// ═══════════════════════════════════════════════
+// GENERATE
+// ═══════════════════════════════════════════════
+async function generate() {
+  if (!getKey())    return alert('Please enter your fal.ai API key first.');
+  if (!S.image)     return alert('Please select or upload an image first (Step 1).');
+  if (!document.getElementById('style').value) return alert('Please choose a renovation style (Step 2).');
+  if (!S.budget)    return alert('Please select a renovation budget (Step 3).');
+
+  const stylePrompt = document.getElementById('prompt').value.trim();
+  const fullPrompt  = buildPrompt(stylePrompt, S.budget);
+
+  setLoading(true);
+
+  try {
+    const imageUrl = await prepareImage(S.image);
+    const result   = await callFal(imageUrl, fullPrompt, getKey());
+    S.after = result;
+    showResults(S.image, result);
+  } catch (e) {
+    setLoading(false);
+    alert(`Generation failed: ${e.message}\n\nCheck your API key and try again.`);
+    console.error(e);
+  }
+}
+
+// Convert any image source to something fal.ai can use
+async function prepareImage(url) {
+  if (url.startsWith('data:')) return url;
+  // For external URLs, proxy through allorigins → base64
+  try {
+    const r = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`);
+    const blob = await r.blob();
+    return await blobToDataUrl(blob);
+  } catch {
+    return url; // fallback: pass URL directly
+  }
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload  = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// FAL.AI QUEUE API
+// ═══════════════════════════════════════════════
+async function callFal(imageUrl, prompt, key) {
+  const MODEL = 'fal-ai/flux-pro/kontext';
+  const BASE  = `https://queue.fal.run/${MODEL}`;
+
+  // 1. Submit job
+  const sub = await fetch(BASE, {
+    method: 'POST',
+    headers: { 'Authorization': `Key ${key}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      image_url:           imageUrl,
+      prompt:              prompt,
+      num_inference_steps: 28,
+      guidance_scale:      3.5,
+      num_images:          1,
+      output_format:       'jpeg',
+    }),
+  });
+
+  if (!sub.ok) {
+    const err = await sub.json().catch(() => ({}));
+    throw new Error(err.detail || err.message || `HTTP ${sub.status} — check your API key.`);
+  }
+
+  const { request_id } = await sub.json();
+  if (!request_id) throw new Error('No request ID returned from fal.ai.');
+
+  // 2. Poll for completion
+  const STEP_LABELS = ['Analysing space', 'Applying style', 'Rendering details', 'Almost there', 'Finishing touches'];
+  let attempts = 0;
+
+  while (attempts < 80) {
+    await sleep(2500);
+    attempts++;
+
+    // Update loading indicator
+    const stepIdx = Math.min(Math.floor(attempts / 5), STEP_LABELS.length - 1);
+    document.querySelectorAll('.loading-step').forEach((el, i) => {
+      el.classList.toggle('active', i === stepIdx);
+    });
+
+    const poll = await fetch(`${BASE}/requests/${request_id}`, {
+      headers: { 'Authorization': `Key ${key}` }
+    }).catch(() => null);
+
+    if (!poll || !poll.ok) continue;
+    const res = await poll.json();
+
+    if (res.status === 'COMPLETED') {
+      const o = res.output;
+      const img = o?.images?.[0]?.url
+        || o?.image?.url
+        || (typeof o?.images?.[0] === 'string' ? o.images[0] : null);
+      if (!img) throw new Error('API returned no image URL.');
+      return img;
+    }
+
+    if (res.status === 'FAILED') {
+      throw new Error(res.error || 'fal.ai generation failed. Check your API key and try again.');
+    }
+  }
+
+  throw new Error('Timed out waiting for result. Please try again.');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ═══════════════════════════════════════════════
+// RESULTS & SLIDER
+// ═══════════════════════════════════════════════
+function showResults(before, after) {
+  document.getElementById('img-before').src = before;
+  document.getElementById('img-after').src  = after;
+  slide(50);
+  document.getElementById('cmp-range').value = 50;
+  setLoading(false);
+  const el = document.getElementById('results');
+  el.classList.add('show');
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function slide(v) {
+  const pct = Number(v);
+  document.getElementById('after-wrap').style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
+  document.getElementById('cmp-line').style.left   = pct + '%';
+  document.getElementById('cmp-handle').style.left = pct + '%';
+}
+
+// ═══════════════════════════════════════════════
+// SHARING
+// ═══════════════════════════════════════════════
+function shareX() {
+  const text = encodeURIComponent('Used AI to visualise what this property could look like renovated 🏠✨ — try Property Vision:');
+  window.open(`https://x.com/intent/tweet?text=${text}`, '_blank');
+}
+function shareWA() {
+  const text = encodeURIComponent('See what this property could look like after renovation 🏠✨');
+  window.open(`https://wa.me/?text=${text}`, '_blank');
+}
+async function dlAfter() {
+  if (!S.after) return;
+  try {
+    const r = await fetch(S.after);
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'property-vision-render.jpg';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch {
+    window.open(S.after, '_blank');
+  }
+}
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function setStatus(el, msg, type) {
+  el.textContent = msg;
+  el.className = `status ${type} show`;
+}
+function setLoading(on) {
+  document.getElementById('loading').classList.toggle('show', on);
+  document.getElementById('gen-btn').disabled = on;
+  if (on) {
+    document.querySelectorAll('.loading-step').forEach((el, i) => el.classList.toggle('active', i === 0));
+  }
+}
+function resetAll() {
+  document.getElementById('results').classList.remove('show');
+  document.getElementById('listing-url').value = '';
+  document.getElementById('url-grid').innerHTML = '';
+  document.getElementById('upload-grid').innerHTML = '';
+  document.getElementById('style').value = '';
+  document.getElementById('prompt-wrap').style.display = 'none';
+  document.getElementById('budget-desc').textContent = '';
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  Object.assign(S, { image: null, budget: null, after: null });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
