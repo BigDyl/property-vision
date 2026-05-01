@@ -1214,56 +1214,47 @@ function blobToDataUrl(blob) {
 // OPENAI gpt-image-1 image editing
 // ═══════════════════════════════════════════════
 async function callOpenAI(imageDataUrl, prompt, key) {
-  console.log('[openai] Converting image…');
-  document.getElementById('loading-sub').textContent = 'Preparing image…';
+  console.log('[worker] sending request…');
 
-  // Convert to PNG blob via canvas (normalises format, handles CORS-fetched images)
   const blob = await dataUrlToCanvasBlob(imageDataUrl, 1024);
 
   const form = new FormData();
   form.append('image', blob, 'room.png');
   form.append('prompt', prompt);
-  form.append('model', 'gpt-image-1');
-  form.append('n', '1');
-  form.append('size', '1024x1024');
 
-  console.log('[openai] Calling /v1/images/edits — prompt length:', prompt.length);
-  document.getElementById('loading-sub').textContent = 'OpenAI is imagining the space…';
+  const resp = await fetch("https://property-vision-api.dylangeorgesmythe.workers.dev/, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${key}`
+    },
+    body: form
+  });
 
-  // Animate loading steps while we wait
-  let step = 0;
-  const stepTimer = setInterval(() => {
-    step = Math.min(step + 1, 4);
-    document.querySelectorAll('.loading-step').forEach((el, j) => el.classList.toggle('active', j === step));
-  }, 8000);
+  const text = await resp.text();
+  console.log('[worker] response:', resp.status, text);
 
-  try {
-    const resp = await fetch('https://api.openai.com/v1/images/edits', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${key}` },
-      body: form,
-    });
-
-    const text = await resp.text();
-    console.log('[openai] HTTP', resp.status, text.slice(0, 400));
-
-    if (!resp.ok) {
-      let msg = text;
-      try { msg = JSON.parse(text).error?.message || text; } catch(e) {}
-      throw new Error(`OpenAI error ${resp.status}: ${msg}`);
-    }
-
-    const data = JSON.parse(text);
-    const b64 = data.data?.[0]?.b64_json;
-    const url  = data.data?.[0]?.url;
-
-    if (b64) return `data:image/png;base64,${b64}`;
-    if (url) return url;
-    throw new Error('No image in OpenAI response: ' + text.slice(0, 200));
-
-  } finally {
-    clearInterval(stepTimer);
+  if (!resp.ok) {
+    throw new Error(text);
   }
+
+  const data = JSON.parse(text);
+
+  if (data.error) {
+    throw new Error(JSON.stringify(data.error));
+  }
+
+  const result = data.image;
+
+  if (!result) {
+    throw new Error("No image returned from worker");
+  }
+
+  // If base64
+  if (result.startsWith("data:") || result.startsWith("http")) {
+    return result;
+  }
+
+  return `data:image/png;base64,${result}`;
 }
 
 // Draw data URL onto a canvas and return as PNG blob
