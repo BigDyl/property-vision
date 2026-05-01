@@ -1049,98 +1049,57 @@ function blobToDataUrl(blob) {
 }
 
 // ═══════════════════════════════════════════════
-// FAL.AI QUEUE API
+// FAL.AI — using official client via CDN
 // ═══════════════════════════════════════════════
 async function callFal(imageUrl, prompt, key) {
-  const MODEL      = 'fal-ai/flux-pro/kontext';
-  const SUBMIT_URL = `https://queue.fal.run/${MODEL}`;
-  const HEADERS    = { 'Authorization': `Key ${key}`, 'Content-Type': 'application/json' };
+  // Load fal.ai client dynamically — handles queue URL routing, auth, and polling
+  console.log('[fal] Loading fal.ai client…');
+  const { fal } = await import('https://esm.sh/@fal-ai/client');
 
-  // 1. Submit job
-  console.log('[fal] Submitting to:', SUBMIT_URL);
-  const sub = await fetch(SUBMIT_URL, {
-    method: 'POST',
-    headers: HEADERS,
-    body: JSON.stringify({
+  fal.config({ credentials: key });
+
+  console.log('[fal] Submitting to fal-ai/flux-pro/kontext…');
+  console.log('[fal] Prompt:', prompt.slice(0, 120) + '…');
+
+  let lastStatus = '';
+
+  const result = await fal.subscribe('fal-ai/flux-pro/kontext', {
+    input: {
       image_url:           imageUrl,
       prompt:              prompt,
       num_inference_steps: 28,
       guidance_scale:      3.5,
       num_images:          1,
       output_format:       'jpeg',
-    }),
+    },
+    onQueueUpdate(update) {
+      console.log('[fal] Queue update:', update);
+      const steps = document.querySelectorAll('.loading-step');
+      if (update.status === 'IN_QUEUE') {
+        const pos = update.queue_position;
+        document.getElementById('loading-sub').textContent =
+          pos != null ? `Queue position: ${pos}` : 'Waiting in queue…';
+        steps.forEach((el, i) => el.classList.toggle('active', i === 0));
+      } else if (update.status === 'IN_PROGRESS') {
+        document.getElementById('loading-sub').textContent = 'Generating…';
+        // Step through loading indicators based on log messages if available
+        const logs = update.logs || [];
+        const pct  = logs.length ? Math.min(Math.floor(logs.length / 4), 3) + 1 : 1;
+        steps.forEach((el, i) => el.classList.toggle('active', i === pct));
+      }
+      lastStatus = update.status;
+    },
   });
 
-  const subText = await sub.text();
-  console.log('[fal] Submit response — HTTP', sub.status, ':', subText);
+  console.log('[fal] Result:', result);
 
-  if (!sub.ok) {
-    let detail = subText;
-    try { const j = JSON.parse(subText); detail = j.detail || j.message || j.error || subText; } catch(e) {}
-    throw new Error(`fal.ai rejected the request (HTTP ${sub.status}): ${detail}`);
-  }
+  const img = result?.data?.images?.[0]?.url
+    || result?.images?.[0]?.url
+    || result?.image?.url;
 
-  let submitData;
-  try { submitData = JSON.parse(subText); } catch(e) { throw new Error('fal.ai returned non-JSON: ' + subText); }
-
-  const request_id = submitData.request_id;
-  if (!request_id) throw new Error('No request_id in response: ' + subText);
-  console.log('[fal] Job queued, request_id:', request_id);
-
-  // 2. Poll /requests/{id}/status  ← this is the correct status endpoint
-  //    Then GET /requests/{id}     ← to fetch the completed result
-  const STATUS_URL = `${SUBMIT_URL}/requests/${request_id}/status`;
-  const RESULT_URL = `${SUBMIT_URL}/requests/${request_id}`;
-  const STEPS      = ['Queued…', 'Analysing space', 'Applying style', 'Rendering', 'Finishing'];
-  let attempts = 0;
-
-  while (attempts < 80) {
-    await sleep(3000);
-    attempts++;
-
-    const stepIdx = Math.min(Math.floor(attempts / 5), STEPS.length - 1);
-    document.querySelectorAll('.loading-step').forEach((el, i) => el.classList.toggle('active', i === stepIdx));
-
-    let statusData;
-    try {
-      const poll = await fetch(STATUS_URL, { headers: HEADERS });
-      const pollText = await poll.text();
-      console.log(`[fal] Poll ${attempts} — HTTP ${poll.status}:`, pollText);
-      if (!poll.ok) continue;
-      statusData = JSON.parse(pollText);
-    } catch (e) {
-      console.warn('[fal] Poll error:', e.message);
-      continue;
-    }
-
-    // Show queue position if available
-    if (statusData.queue_position != null) {
-      document.getElementById('loading-sub').textContent = `Position in queue: ${statusData.queue_position}`;
-    }
-
-    if (statusData.status === 'COMPLETED') {
-      console.log('[fal] COMPLETED — fetching result from:', RESULT_URL);
-      const resultResp = await fetch(RESULT_URL, { headers: HEADERS });
-      const resultText = await resultResp.text();
-      console.log('[fal] Result payload:', resultText);
-      const result = JSON.parse(resultText);
-      const img = result?.images?.[0]?.url
-        || result?.output?.images?.[0]?.url
-        || result?.image?.url
-        || (typeof result?.images?.[0] === 'string' ? result.images[0] : null);
-      if (!img) throw new Error('Generation finished but no image URL found. Full response: ' + resultText);
-      return img;
-    }
-
-    if (statusData.status === 'FAILED') {
-      throw new Error('fal.ai generation failed: ' + (statusData.error || JSON.stringify(statusData)));
-    }
-  }
-
-  throw new Error('Timed out after 4 minutes. fal.ai may be under load — please try again.');
+  if (!img) throw new Error('Generation finished but no image URL found. Full response logged to console.');
+  return img;
 }
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ═══════════════════════════════════════════════
 // RESULTS & SLIDER
