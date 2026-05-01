@@ -1049,56 +1049,69 @@ function blobToDataUrl(blob) {
 }
 
 // ═══════════════════════════════════════════════
-// FAL.AI — using official client via CDN
+// FAL.AI — manual polling using response-provided URLs
 // ═══════════════════════════════════════════════
 async function callFal(imageUrl, prompt, key) {
-  // Load fal.ai client dynamically — handles queue URL routing, auth, and polling
-  console.log('[fal] Loading fal.ai client…');
-  const { fal } = await import('https://esm.sh/@fal-ai/client');
+  const HEADERS = { 'Authorization': `Key ${key}`, 'Content-Type': 'application/json' };
 
-  fal.config({ credentials: key });
-
-  console.log('[fal] Submitting to fal-ai/flux-pro/kontext…');
-  console.log('[fal] Prompt:', prompt.slice(0, 120) + '…');
-
-  let lastStatus = '';
-
-  const result = await fal.subscribe('fal-ai/flux-pro/kontext', {
-    input: {
+  // 1. Submit
+  console.log('[fal] Submitting job…');
+  const sub = await fetch('https://queue.fal.run/fal-ai/flux-pro/kontext', {
+    method: 'POST',
+    headers: HEADERS,
+    body: JSON.stringify({
       image_url:           imageUrl,
       prompt:              prompt,
       num_inference_steps: 28,
       guidance_scale:      3.5,
       num_images:          1,
       output_format:       'jpeg',
-    },
-    onQueueUpdate(update) {
-      console.log('[fal] Queue update:', update);
-      const steps = document.querySelectorAll('.loading-step');
-      if (update.status === 'IN_QUEUE') {
-        const pos = update.queue_position;
-        document.getElementById('loading-sub').textContent =
-          pos != null ? `Queue position: ${pos}` : 'Waiting in queue…';
-        steps.forEach((el, i) => el.classList.toggle('active', i === 0));
-      } else if (update.status === 'IN_PROGRESS') {
-        document.getElementById('loading-sub').textContent = 'Generating…';
-        // Step through loading indicators based on log messages if available
-        const logs = update.logs || [];
-        const pct  = logs.length ? Math.min(Math.floor(logs.length / 4), 3) + 1 : 1;
-        steps.forEach((el, i) => el.classList.toggle('active', i === pct));
-      }
-      lastStatus = update.status;
-    },
+    }),
   });
 
-  console.log('[fal] Result:', result);
+  const subText = await sub.text();
+  console.log('[fal] Submit — HTTP', sub.status, subText);
+  if (!sub.ok) throw new Error(`fal.ai rejected request (HTTP ${sub.status}): ${subText}`);
 
-  const img = result?.data?.images?.[0]?.url
-    || result?.images?.[0]?.url
-    || result?.image?.url;
+  const subData = JSON.parse(subText);
+  // fal.ai returns the exact URLs to use — don't construct them, use these directly
+  const { status_url, response_url } = subData;
+  console.log('[fal] status_url:', status_url);
+  console.log('[fal] response_url:', response_url);
+  if (!status_url || !response_url) throw new Error('No status_url/response_url in submit response: ' + subText);
 
-  if (!img) throw new Error('Generation finished but no image URL found. Full response logged to console.');
-  return img;
+  // 2. Poll status_url until COMPLETED
+  const STEPS = ['Queued…', 'Analysing space', 'Applying style', 'Rendering', 'Finishing'];
+  for (let i = 0; i < 80; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+
+    document.querySelectorAll('.loading-step').forEach((el, j) =>
+      el.classList.toggle('active', j === Math.min(Math.floor(i / 5), STEPS.length - 1)));
+
+    const poll = await fetch(status_url, { headers: HEADERS });
+    const pollText = await poll.text();
+    console.log(`[fal] Poll ${i + 1} — HTTP ${poll.status}:`, pollText);
+    if (!poll.ok) continue;
+
+    const s = JSON.parse(pollText);
+    if (s.queue_position != null)
+      document.getElementById('loading-sub').textContent = `Queue position: ${s.queue_position}`;
+
+    if (s.status === 'COMPLETED') {
+      // 3. Fetch result from response_url
+      const res = await fetch(response_url, { headers: HEADERS });
+      const resText = await res.text();
+      console.log('[fal] Result:', resText);
+      const data = JSON.parse(resText);
+      const img = data?.images?.[0]?.url || data?.image?.url;
+      if (!img) throw new Error('No image URL in result: ' + resText);
+      return img;
+    }
+
+    if (s.status === 'FAILED') throw new Error('Generation failed: ' + (s.error || pollText));
+  }
+
+  throw new Error('Timed out. Please try again.');
 }
 
 // ═══════════════════════════════════════════════
