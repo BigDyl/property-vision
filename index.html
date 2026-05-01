@@ -913,9 +913,9 @@ async function fetchImages() {
 
 function extractImgUrls(html) {
   const found  = new Set();
-  const exclude = new Set(); // floorplan URLs to exclude
+  const exclude = new Set();
 
-  // ── Rightmove __NEXT_DATA__ — most reliable source
+  // ── 1. Rightmove __NEXT_DATA__ — best source when present
   const nd = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
   if (nd) {
     dbg('  __NEXT_DATA__ found');
@@ -924,64 +924,73 @@ function extractImgUrls(html) {
       const pd   = data?.props?.pageProps?.propertyData
                 || data?.props?.pageProps?.listingData
                 || data?.props?.pageProps?.property;
-
       if (pd) {
-        // Collect floorplan URLs first so we can exclude them
+        // Grab floorplan URLs to exclude
         const fps = pd.floorplans || pd.floorPlanImages || [];
-        fps.forEach(f => {
-          const u = f.srcUrl || f.url || f.src || '';
-          if (u) exclude.add(u.split('?')[0]);
-        });
+        fps.forEach(f => { const u = f.srcUrl||f.url||f.src||''; if (u) exclude.add(u.split('?')[0]); });
         dbg(`  Excluding ${exclude.size} floorplan URL(s)`);
 
-        // Now collect property photos
         const imgs = pd.images || pd.photos || [];
         let count = 0;
         imgs.forEach(i => {
-          let u = i.srcUrl || i.url || i.src || i.imageUrl || '';
+          let u = i.srcUrl||i.url||i.src||i.imageUrl||'';
           if (typeof i === 'string') u = i;
-          // Use a large size variant
-          u = u.replace('{size}', 'max_800x600')
-               .replace('_max_476x317', '_max_800x600')
-               .replace('_max_135x100', '_max_800x600');
+          u = u.replace('{size}','max_800x600')
+               .replace(/_max_\d+x\d+/,'_max_800x600');
           const clean = u.split('?')[0];
-          if (clean.startsWith('http') && !exclude.has(clean)) {
-            found.add(clean);
-            count++;
-          }
+          if (clean.startsWith('http') && !exclude.has(clean)) { found.add(clean); count++; }
         });
-        dbg(`  Property photos from __NEXT_DATA__: ${count}`, count ? 'debug-ok' : 'debug-warn');
+        dbg(`  __NEXT_DATA__ photos: ${count}`, count ? 'debug-ok' : 'debug-warn');
+      } else {
+        dbg('  __NEXT_DATA__ present but no propertyData path found', 'debug-warn');
       }
-    } catch (e) {
-      dbg(`  __NEXT_DATA__ parse error: ${e.message}`, 'debug-err');
-    }
+    } catch (e) { dbg(`  __NEXT_DATA__ parse error: ${e.message}`, 'debug-err'); }
   } else {
     dbg('  __NEXT_DATA__ not found', 'debug-warn');
   }
 
-  // ── Zoopla JSON-LD (if no images yet)
+  // ── 2. Rightmove CDN regex — key insight: property photos have _IMG_ in URL,
+  //       floorplans have FLP. Filter accordingly. This is a reliable fallback.
   if (found.size === 0) {
+    dbg('  Trying Rightmove CDN regex (_IMG_ pattern)…');
+    let rmCount = 0;
+    for (const m of html.matchAll(/https:\/\/media\.rightmove\.co\.uk\/[^\s"'<>]+\.jpe?g/gi)) {
+      const u = m[0].split('?')[0];
+      // _IMG_ = property photo. FLP/floorplan = floor plan. Skip non-photos.
+      if (/_IMG_/i.test(u) && !/FLP|floorplan/i.test(u)) {
+        // Normalise to a large size
+        const normalised = u.replace(/_max_\d+x\d+/,'_max_800x600');
+        found.add(normalised);
+        rmCount++;
+      }
+    }
+    dbg(`  Rightmove CDN regex: ${rmCount} photos`, rmCount ? 'debug-ok' : 'debug-warn');
+  }
+
+  // ── 3. Zoopla JSON-LD
+  if (found.size === 0) {
+    dbg('  Trying Zoopla JSON-LD…');
     for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/g)) {
       try {
         const ld = JSON.parse(m[1]);
         const imgs = Array.isArray(ld.image) ? ld.image : [ld.image];
-        imgs.forEach(i => {
-          const u = typeof i === 'string' ? i : i?.url;
-          if (u?.startsWith('http')) found.add(u);
-        });
+        imgs.forEach(i => { const u = typeof i==='string'?i:i?.url; if (u?.startsWith('http')) found.add(u); });
       } catch (e) {}
     }
-    dbg(`  JSON-LD fallback: ${found.size} images`, found.size ? 'debug-ok' : '');
+    // Also try Zoopla CDN directly
+    for (const m of html.matchAll(/https:\/\/[^\s"'<>]*zoocdn[^\s"'<>]+\.jpe?g/gi))
+      found.add(m[0].split('?')[0]);
+    dbg(`  Zoopla fallback: ${found.size} images`, found.size ? 'debug-ok' : '');
   }
 
-  // ── og:image as last resort
+  // ── 4. og:image — true last resort, usually just one image
   if (found.size === 0) {
     for (const m of html.matchAll(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/g)) found.add(m[1]);
     for (const m of html.matchAll(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/g)) found.add(m[1]);
-    dbg(`  og:image fallback: ${found.size} images`, found.size ? 'debug-ok' : '');
+    dbg(`  og:image last resort: ${found.size} images`, found.size ? 'debug-ok' : 'debug-err');
+    if (found.size > 0) dbg('  ⚠ Only got og:image — full gallery extraction failed. Try Upload tab for better results.', 'debug-warn');
   }
 
-  // Final filter: must be http, not a floorplan by URL keyword
   return [...found].filter(u =>
     u.startsWith('http') &&
     !exclude.has(u) &&
@@ -1015,26 +1024,32 @@ dz.addEventListener('drop', e => {
 });
 
 // ═══════════════════════════════════════════════
-// STYLE PROMPTS
+// STYLE PROMPTS — simple, image-deferring language
 // ═══════════════════════════════════════════════
-const PROMPTS = {
+// Key principle: don't tell the model what kind of space it is.
+// Let it read the image. Just describe the aesthetic direction.
+const STYLE_FLAVOURS = {
   modern:
-    'Transform this room into a sleek modern minimalist interior. Clean lines, neutral palette of crisp white and warm grey, engineered oak or concrete flooring, concealed storage, statement pendant lighting. Replace all dated surfaces and fixtures with contemporary equivalents. Photorealistic high-end interior photography.',
+    'modern minimalist — clean lines, warm whites and stone tones, natural oak, concealed storage, pared-back fixtures',
   scandi:
-    'Renovate this room in Scandi / Nordic style. Light birch wood, white walls, soft linen textures, hygge warmth. Simple crafted Scandinavian furniture, indoor botanicals, warm ambient lighting. Airy, calm, lived-in. Photorealistic interior photography.',
+    'Scandinavian / Nordic — light birch wood, white walls, linen textures, simple crafted furniture, warm ambient lighting, indoor plants',
   industrial:
-    'Transform this room into an industrial loft interior. Exposed brick or raw concrete, steel-frame windows, polished concrete or reclaimed wood plank flooring, Edison bulb pendants, dark matte metal fixtures. Raw but refined. Photorealistic interior photography.',
+    'industrial loft — exposed brick or raw concrete, dark steel, reclaimed timber, Edison bulb pendants, utilitarian fittings',
   country:
-    'Renovate this room in English country cottage style. Warm limestone and aged timber tones, exposed beams, heritage Farrow & Ball paint colours, reclaimed wood detailing, floral and botanical soft furnishings, period fireplace. Cosy and characterful. Photorealistic.',
+    'English country cottage — warm stone and aged timber, heritage paint colours, floral soft furnishings, reclaimed wood, period character',
   maximalist:
-    'Transform this room into a bold maximalist interior — rich jewel tones (deep emerald, sapphire, burnt amber), layered textures, gallery wall with ornate frames, velvet upholstery, brass and gold accents, sculptural furniture. Eclectic but curated. Photorealistic.',
+    'maximalist eclectic — rich jewel tones, layered textures, gallery-style display, velvet, brass and gold accents',
   artdeco:
-    'Renovate this room in Art Deco style. Geometric patterns, high-gloss black and polished gold accents, lacquered surfaces, velvet upholstery, mirrored panels, sunburst fan-shaped details, glamorous pendant lighting. Bold and luxurious. Photorealistic.',
+    'Art Deco — geometric patterns, lacquered black and gold, mirrored surfaces, velvet, fan-shaped detailing, glamorous lighting',
   japandi:
-    'Transform this room into a Japandi interior — Japanese wabi-sabi minimalism meets Scandinavian warmth. Natural textures: bamboo, raw linen, stone, pale oak. Muted earthy palette, low-profile furniture, a single bonsai or simple botanical. Serene and purposeful. Photorealistic.',
+    'Japandi — Japanese wabi-sabi minimalism meets Scandi warmth, natural textures, muted earthy palette, low-profile furniture, simple botanicals',
   victorian:
-    'Restore this room beautifully with period Victorian details. Ornate cornicing and ceiling rose, restored sash windows, encaustic or parquet tile floor, cast-iron fireplace with original surround, dado rail with two-tone paint, Farrow & Ball heritage colours. Elegant and historically sympathetic. Photorealistic.',
+    'restored Victorian — period cornicing, encaustic or parquet floors, cast-iron fireplace, dado rail, Farrow & Ball heritage colours, sash windows',
 };
+
+const PROMPTS = Object.fromEntries(
+  Object.entries(STYLE_FLAVOURS).map(([k, v]) => [k, `Restyle this space in a ${v} aesthetic.`])
+);
 
 const BUDGET_DESCS = {
   '10k':  'Cosmetic only — fresh paint, new fixtures, soft furnishings, minor swaps.',
@@ -1044,29 +1059,70 @@ const BUDGET_DESCS = {
 };
 
 const BUDGET_PROMPTS = {
-  '10k':  'This is a cosmetic renovation on a tight £10k budget: fresh paint, new light fittings, updated soft furnishings, minor fixture swaps only — no structural or major works.',
-  '25k':  'This is a moderate £25k renovation: kitchen refresh with new fronts and worktops, new flooring throughout, bathroom update with new suite, full redecoration.',
-  '50k':  'This is a significant £50k renovation: complete new kitchen, full bathroom replacement, new flooring, window replacements, replastering, new electrics and lighting.',
-  '100k+':'This is a full £100k+ renovation: structural works, premium bespoke kitchen, two bathrooms, underfloor heating, new heating system, high-end finishes and materials throughout.',
+  '10k':  'Cosmetic changes only: new paint, updated light fittings, soft furnishings. No structural work or major replacements.',
+  '25k':  'Moderate update: refresh surface finishes, update key fixtures, new flooring if appropriate.',
+  '50k':  'Significant renovation: replace major elements (kitchen units, bathroom suite, flooring) where visible.',
+  '100k+':'Full transformation: premium materials and finishes throughout, everything updated to a high specification.',
 };
 
-// ─── HIDDEN SYSTEM CONSTRAINTS ──────────────────────────────────
+// ─── SYSTEM CONSTRAINTS ──────────────────────────────────────────
+// These are injected silently into every prompt.
 const SYSTEM_CONSTRAINTS = [
-  'CRITICAL: Do NOT change the position, size, or shape of any windows or doors. They must remain exactly where they are in the original photo.',
-  'CRITICAL: Do NOT change the room type. If this is a living room, keep it as a living room. If it is a kitchen, keep all kitchen appliances and fittings in place. Never place kitchen elements in a non-kitchen space or vice versa.',
-  'Do NOT make any structural changes — walls, ceiling height, and room footprint must stay identical to the original photo.',
-  'You may update furniture, finishes, colours, textiles, and light fittings. You may rearrange furniture within the existing space.',
-  'Maintain the exact same camera angle, perspective, and field of view as the original photo.',
-  'Preserve the real proportions and scale of the room. Do not make the room appear larger or smaller.',
-  'The result must look like a real lived-in home — not a staged showroom or CGI render. Include natural imperfections, warm lighting, and the feel of a space someone actually lives in.',
-  'Photorealistic interior photography only. Not a sketch, illustration, watercolour, or 3D render.',
-  'Do not include people, pets, brand logos, or visible product labels.',
+  'Look carefully at the image and identify what kind of space it shows. Work only with what is actually there.',
+  'Do NOT change the architecture: all walls, windows, doors, ceiling height and room layout must remain exactly as in the original image.',
+  'Do NOT add rooms, extensions, or spaces that do not exist in the original photo.',
+  'Update only surface finishes, furniture, textiles, light fittings and decorative objects.',
+  'Maintain the identical camera angle, perspective and field of view as the original photo.',
+  'The result must feel like a real, lived-in home — warm and personal, not a staged showroom.',
+  'Output must look like a real photograph, not an illustration, 3D render or CGI.',
+  'Do not add people, pets, or visible brand logos.',
 ].join(' ');
 
 function buildPrompt(stylePrompt, budget, roomType) {
-  const budgetCtx  = budget   ? `Budget: ${BUDGET_PROMPTS[budget]}` : '';
-  const roomCtx    = roomType ? `The room in this image is a ${roomType}. All transformations must be appropriate for a ${roomType} and must not change it into a different room type.` : '';
-  return `${stylePrompt} ${budgetCtx} ${roomCtx} HARD RULES: ${SYSTEM_CONSTRAINTS}`.trim();
+  const budgetCtx = budget   ? `Budget scope: ${BUDGET_PROMPTS[budget]}` : '';
+  const roomCtx   = roomType ? `The AI detected this space as: ${roomType}.` : '';
+  return `${stylePrompt} ${budgetCtx} ${roomCtx} Rules: ${SYSTEM_CONSTRAINTS}`.trim();
+}
+
+// ─── AUTO ROOM-TYPE DETECTION via fal.ai vision ──────────────────
+// Called before each generation. Uses moondream (fast, cheap vision model).
+async function detectRoomType(imageUrl, key) {
+  try {
+    const HEADERS = { 'Authorization': `Key ${key}`, 'Content-Type': 'application/json' };
+    const sub = await fetch('https://queue.fal.run/fal-ai/moondream/batched', {
+      method: 'POST',
+      headers: HEADERS,
+      body: JSON.stringify({
+        inputs: [{
+          image_url: imageUrl,
+          question: 'What type of room or space is shown? Reply with only one of: living room, kitchen, bedroom, bathroom, hallway, dining room, home office, garden, exterior, or other.',
+        }],
+      }),
+    });
+    if (!sub.ok) return null;
+    const subData = await sub.json();
+    const { status_url, response_url } = subData;
+    if (!status_url) return null;
+
+    for (let i = 0; i < 20; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      const poll = await fetch(status_url, { headers: HEADERS });
+      if (!poll.ok) continue;
+      const s = await poll.json();
+      if (s.status === 'COMPLETED') {
+        const res = await fetch(response_url, { headers: HEADERS });
+        const data = await res.json();
+        // moondream batched returns outputs array
+        const answer = data?.outputs?.[0]?.answer || data?.answer || '';
+        console.log('[vision] Room type detected:', answer);
+        return answer.trim().toLowerCase() || null;
+      }
+      if (s.status === 'FAILED') return null;
+    }
+  } catch (e) {
+    console.warn('[vision] Room detection failed:', e.message);
+  }
+  return null;
 }
 
 function onStyleChange() {
@@ -1092,8 +1148,6 @@ async function generate() {
   if (!S.budget)         return alert('Please select a renovation budget (Step 3).');
 
   const stylePrompt = document.getElementById('prompt').value.trim();
-  const roomType    = document.getElementById('room-type').value;
-  const fullPrompt  = buildPrompt(stylePrompt, S.budget, roomType);
   const total       = S.images.length;
 
   // Hide form, show loading
@@ -1108,15 +1162,26 @@ async function generate() {
     const imgUrl = S.images[i];
     document.getElementById('loading-title').textContent =
       total > 1 ? `Imagining room ${i + 1} of ${total}…` : 'Imagining the potential…';
-    document.getElementById('loading-sub').textContent = 'Takes 20–40 seconds per room.';
+    document.getElementById('loading-sub').textContent = total > 1
+      ? 'Detecting room type, then generating…'
+      : 'Takes 20–40 seconds.';
     document.querySelectorAll('.loading-step').forEach((el, j) => el.classList.toggle('active', j === 0));
 
     try {
       const prepared = await prepareImage(imgUrl);
-      const afterUrl = await callFal(prepared, fullPrompt, getKey());
-      S.lastAfterUrl = afterUrl;
-      pairs.push({ before: imgUrl, after: afterUrl, n: i + 1 });
-      // Show partial results immediately
+
+      // Auto-detect room type before generating
+      document.getElementById('loading-sub').textContent = 'Identifying the space…';
+      const roomType = await detectRoomType(prepared, getKey());
+      console.log(`[gen] Room ${i + 1} detected as:`, roomType);
+      if (roomType) {
+        document.getElementById('loading-sub').textContent = `Detected: ${roomType}. Generating…`;
+      }
+
+      const fullPrompt = buildPrompt(stylePrompt, S.budget, roomType);
+      const afterUrl   = await callFal(prepared, fullPrompt, getKey());
+      S.lastAfterUrl   = afterUrl;
+      pairs.push({ before: imgUrl, after: afterUrl, roomType, n: i + 1 });
       showResults(pairs, total);
     } catch (e) {
       console.error(`[gen] Room ${i + 1} failed:`, e);
@@ -1233,7 +1298,7 @@ function showResults(pairs, total) {
     } else {
       const id = `cmp-${idx}`;
       item.innerHTML = `
-        ${total > 1 ? `<div class="result-label">Room ${p.n}</div>` : ''}
+        ${total > 1 ? `<div class="result-label">Room ${p.n}${p.roomType ? ` — ${p.roomType}` : ''}</div>` : ''}
         <div class="compare-wrap" id="${id}">
           <img class="cmp-before" src="${p.before}" alt="Before" />
           <div class="cmp-after-wrap" id="${id}-aw" style="clip-path:inset(0 50% 0 0)">
