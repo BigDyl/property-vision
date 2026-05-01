@@ -970,21 +970,17 @@ const BUDGET_DESCS = [
 ];
 
 // ─── PROMPT BUILDER ───────────────────────────────────────────────
+// Deliberately minimal — shorter prompts preserve the original image better.
+// The model reads the image first; we just nudge the style direction.
 function buildPrompt(style, budgetIdx, propertyType) {
   if (!style) return '';
-  const styleDesc    = STYLE_DESCRIPTIONS[style] || style;
-  const budgetLine   = BUDGET_SCOPE[budgetIdx ?? 1];
-  const propertyLine = propertyType ? `This is a ${propertyType}.` : '';
+  const styleDesc  = STYLE_DESCRIPTIONS[style] || style;
+  const propLine   = propertyType ? `This is a ${propertyType}. ` : '';
+  const budgetLine = budgetIdx != null && budgetIdx !== 1
+    ? ` ${BUDGET_SCOPE[budgetIdx]}`
+    : '';
 
-  return [
-    `You are an interior design expert. ${propertyLine}`,
-    `Study this image carefully and apply a considered renovation in a ${styleDesc} aesthetic.`,
-    `Develop a coherent design language for this specific space — think about furniture, colours, lighting, and finishes that work together.`,
-    `Maximise the feeling of natural light, space, and liveability.`,
-    `${budgetLine}`,
-    `Do not make structural changes — keep all windows, doors, walls, and ceiling height exactly as they are in this image.`,
-    `You may suggest changes to furniture layout within the existing space.`,
-  ].join(' ');
+  return `${propLine}What would this room look like renovated in a ${styleDesc} style?${budgetLine} Keep all windows, doors, walls and ceiling exactly as they are.`;
 }
 
 // ─── BUDGET SLIDER ────────────────────────────────────────────────
