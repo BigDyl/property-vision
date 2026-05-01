@@ -530,6 +530,27 @@
     .debug-warn { color: #b06010; }
     .debug-err  { color: #bf4122; }
 
+    /* ─── PLACEHOLDER CARDS ──────────────────────── */
+    .placeholder-card {
+      background: var(--sand);
+      border-radius: 10px;
+      aspect-ratio: 4/3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      border: 2px dashed var(--border);
+    }
+    .ph-spinner {
+      width: 30px; height: 30px;
+      border: 3px solid var(--warm);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    .ph-text { font-size: 13px; color: var(--muted); font-weight: 500; }
+
     /* ─── RESPONSIVE ─────────────────────────────────── */
     @media (max-width: 600px) {
       .header-inner { padding: 28px 20px 48px; }
@@ -607,6 +628,13 @@
     <div class="step-badge"><span class="step-num">2</span> Style</div>
     <div class="card-title">Renovation style</div>
     <div class="field">
+      <label>What are these photos of?</label>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="pill active" id="mode-interior" onclick="setExteriorMode(false)">🛋 Interior rooms</button>
+        <button class="pill" id="mode-exterior" onclick="setExteriorMode(true)">🏡 Exterior / garden</button>
+      </div>
+    </div>
+    <div class="field">
       <label>Choose a style</label>
       <select id="style" onchange="onStyleChange()">
         <option value="">— Pick a style —</option>
@@ -672,7 +700,7 @@
   <div class="card loading" id="loading">
     <div class="spinner"></div>
     <div class="loading-title" id="loading-title">Imagining the potential…</div>
-    <div class="loading-sub" id="loading-sub">Takes 20–40 seconds per room.</div>
+    <div class="loading-sub" id="loading-sub">This takes about 30–45 seconds.</div>
     <div class="loading-steps">
       <span class="loading-step active" id="ls-0">Queued</span>
       <span class="loading-step" id="ls-1">Analysing space</span>
@@ -868,31 +896,31 @@ dz.addEventListener('drop', e => {
 });
 
 // ═══════════════════════════════════════════════
-// STYLE PROMPTS — simple, image-deferring language
+// STYLE PROMPTS
 // ═══════════════════════════════════════════════
-// Key principle: don't tell the model what kind of space it is.
-// Let it read the image. Just describe the aesthetic direction.
 const STYLE_FLAVOURS = {
-  modern:
-    'modern minimalist — clean lines, warm whites and stone tones, natural oak, concealed storage, pared-back fixtures',
-  scandi:
-    'Scandinavian / Nordic — light birch wood, white walls, linen textures, simple crafted furniture, warm ambient lighting, indoor plants',
-  industrial:
-    'industrial loft — exposed brick or raw concrete, dark steel, reclaimed timber, Edison bulb pendants, utilitarian fittings',
-  country:
-    'English country cottage — warm stone and aged timber, heritage paint colours, floral soft furnishings, reclaimed wood, period character',
-  maximalist:
-    'maximalist eclectic — rich jewel tones, layered textures, gallery-style display, velvet, brass and gold accents',
-  artdeco:
-    'Art Deco — geometric patterns, lacquered black and gold, mirrored surfaces, velvet, fan-shaped detailing, glamorous lighting',
-  japandi:
-    'Japandi — Japanese wabi-sabi minimalism meets Scandi warmth, natural textures, muted earthy palette, low-profile furniture, simple botanicals',
-  victorian:
-    'restored Victorian — period cornicing, encaustic or parquet floors, cast-iron fireplace, dado rail, Farrow & Ball heritage colours, sash windows',
+  modern:     'modern minimalist: clean lines, warm white and stone tones, natural oak, concealed storage, pared-back fixtures and fittings',
+  scandi:     'Scandinavian / Nordic: light birch wood, white walls, linen textures, simple crafted furniture, warm ambient lighting, indoor plants',
+  industrial: 'industrial loft: exposed brick or raw concrete, dark steel, reclaimed timber, Edison bulb pendants, utilitarian fittings',
+  country:    'English country cottage: warm stone and aged timber, heritage paint colours, floral soft furnishings, reclaimed wood, period character',
+  maximalist: 'maximalist eclectic: rich jewel tones, layered textures, gallery-wall display, velvet, brass and gold accents',
+  artdeco:    'Art Deco: geometric patterns, lacquered black and gold, mirrored surfaces, velvet, fan-shaped detailing, glamorous lighting',
+  japandi:    'Japandi: Japanese wabi-sabi minimalism meets Scandi warmth, natural textures, muted earthy palette, low-profile furniture, simple botanicals',
+  victorian:  'restored Victorian: ornate cornicing, encaustic or parquet floors, cast-iron fireplace, dado rail, Farrow & Ball heritage colours',
 };
 
-const PROMPTS = Object.fromEntries(
-  Object.entries(STYLE_FLAVOURS).map(([k, v]) => [k, `Restyle this space in a ${v} aesthetic.`])
+// Interior prompt — defers to image, never prescribes room type
+const INTERIOR_PROMPTS = Object.fromEntries(
+  Object.entries(STYLE_FLAVOURS).map(([k, v]) => [k,
+    `Apply a ${v} finish to this room interior. Update only the decorative surfaces: wall colour/finish, flooring, furniture, soft furnishings, light fittings, and decorative objects.`
+  ])
+);
+
+// Exterior prompt — entirely different task
+const EXTERIOR_PROMPTS = Object.fromEntries(
+  Object.entries(STYLE_FLAVOURS).map(([k, v]) => [k,
+    `Refresh the exterior of this property in a ${v} style. Update only: exterior paint or render colour, front door colour and style, garden planting, path and driveway materials, boundary treatments, and outdoor lighting. Do not alter anything else.`
+  ])
 );
 
 const BUDGET_DESCS = {
@@ -903,73 +931,61 @@ const BUDGET_DESCS = {
 };
 
 const BUDGET_PROMPTS = {
-  '10k':  'Budget: around £10,000 — a modest scope, so focus on cosmetic and atmospheric changes only.',
-  '25k':  'Budget: around £25,000 — a reasonable scope allowing meaningful surface-level improvements.',
-  '50k':  'Budget: around £50,000 — a solid budget; show meaningful transformation without going overboard.',
-  '100k+':'Budget: £100,000+ — a generous scope; feel free to show a comprehensive, high-quality transformation.',
+  '10k':  'This is a light-touch, low-budget refresh. Stick to paint, soft furnishings, and swapping small fixtures only.',
+  '25k':  'This is a moderate refresh. Focus on surface-level changes that have high visual impact.',
+  '50k':  'This is a meaningful renovation. Show clearly upgraded finishes and fittings.',
+  '100k+':'This is a high-spec full renovation. Show premium materials and a thorough transformation.',
 };
 
 // ─── SYSTEM CONSTRAINTS ──────────────────────────────────────────
-const SYSTEM_CONSTRAINTS = [
-  'Study the image carefully. Work only with the space that is actually shown — do not invent rooms, extensions, or areas that do not exist.',
-  'Preserve all architecture exactly: walls, windows, doors, ceiling height and room shape must not change.',
-  'Only update surface finishes, furniture, textiles, light fittings, and decorative objects.',
-  'Keep the same camera angle and field of view as the original.',
-  'The result should feel like a warm, lived-in home — not a staged showroom.',
-  'Output must look like a real photograph.',
+// Written as explicit DO NOTs — GPT-image-1 follows these far more reliably
+// than positive instructions alone.
+const INTERIOR_CONSTRAINTS = [
+  'DO NOT change the size, shape, position, or number of windows.',
+  'DO NOT change the size, shape, position, or style of any doors.',
+  'DO NOT raise or lower the ceiling.',
+  'DO NOT remove, add, or move walls.',
+  'DO NOT change the footprint or layout of the room.',
+  'DO NOT add rooms, spaces, or features that do not exist in the original photo.',
+  'Maintain the exact same camera angle, perspective, and field of view.',
+  'The output must look like a real photograph of the same room — not a CGI render, illustration, or staged showroom.',
 ].join(' ');
 
-function buildPrompt(stylePrompt, budget, roomType) {
-  const budgetCtx = budget   ? `Budget scope: ${BUDGET_PROMPTS[budget]}` : '';
-  const roomCtx   = roomType ? `The AI detected this space as: ${roomType}.` : '';
-  return `${stylePrompt} ${budgetCtx} ${roomCtx} Rules: ${SYSTEM_CONSTRAINTS}`.trim();
+const EXTERIOR_CONSTRAINTS = [
+  'DO NOT change the shape, size, or position of any windows.',
+  'DO NOT change the roofline, chimney stacks, or structural form of the building.',
+  'DO NOT add extensions, new floors, or structural changes.',
+  'DO NOT move the building or alter its orientation.',
+  'Maintain the exact same camera angle, perspective, and field of view.',
+  'The output must look like a real photograph.',
+].join(' ');
+
+function buildPrompt(stylePrompt, budget, isExterior) {
+  const budgetCtx     = budget ? `Budget context: ${BUDGET_PROMPTS[budget]}` : '';
+  const constraints   = isExterior ? EXTERIOR_CONSTRAINTS : INTERIOR_CONSTRAINTS;
+  return `${stylePrompt} ${budgetCtx} ${constraints}`.trim();
 }
 
-// ─── AUTO ROOM-TYPE DETECTION via fal.ai vision ──────────────────
-// Called before each generation. Uses moondream (fast, cheap vision model).
-async function detectRoomType(imageUrl, key) {
-  try {
-    const HEADERS = { 'Authorization': `Key ${key}`, 'Content-Type': 'application/json' };
-    const sub = await fetch('https://queue.fal.run/fal-ai/moondream/batched', {
-      method: 'POST',
-      headers: HEADERS,
-      body: JSON.stringify({
-        inputs: [{
-          image_url: imageUrl,
-          question: 'What type of room or space is shown? Reply with only one of: living room, kitchen, bedroom, bathroom, hallway, dining room, home office, garden, exterior, or other.',
-        }],
-      }),
-    });
-    if (!sub.ok) return null;
-    const subData = await sub.json();
-    const { status_url, response_url } = subData;
-    if (!status_url) return null;
-
-    for (let i = 0; i < 20; i++) {
-      await new Promise(r => setTimeout(r, 2000));
-      const poll = await fetch(status_url, { headers: HEADERS });
-      if (!poll.ok) continue;
-      const s = await poll.json();
-      if (s.status === 'COMPLETED') {
-        const res = await fetch(response_url, { headers: HEADERS });
-        const data = await res.json();
-        // moondream batched returns outputs array
-        const answer = data?.outputs?.[0]?.answer || data?.answer || '';
-        console.log('[vision] Room type detected:', answer);
-        return answer.trim().toLowerCase() || null;
-      }
-      if (s.status === 'FAILED') return null;
-    }
-  } catch (e) {
-    console.warn('[vision] Room detection failed:', e.message);
+// ─── EXTERIOR MODE TOGGLE ─────────────────────────────────────────
+// Stored globally — set by the toggle in Step 2
+let exteriorMode = false;
+function setExteriorMode(isExt) {
+  exteriorMode = isExt;
+  const intBtn = document.getElementById('mode-interior');
+  const extBtn = document.getElementById('mode-exterior');
+  intBtn.classList.toggle('active', !isExt);
+  extBtn.classList.toggle('active', isExt);
+  // Refresh prompt textarea if style already selected
+  const style = document.getElementById('style').value;
+  if (style) {
+    document.getElementById('prompt').value = isExt ? EXTERIOR_PROMPTS[style] : INTERIOR_PROMPTS[style];
   }
-  return null;
 }
 
 function onStyleChange() {
   const v = document.getElementById('style').value;
   document.getElementById('prompt-wrap').style.display = v ? 'block' : 'none';
-  if (v) document.getElementById('prompt').value = PROMPTS[v];
+  if (v) document.getElementById('prompt').value = exteriorMode ? EXTERIOR_PROMPTS[v] : INTERIOR_PROMPTS[v];
 }
 
 function setBudget(el, v) {
@@ -988,23 +1004,45 @@ async function generate() {
   if (!S.budget)         return alert('Please select a budget (Step 3).');
 
   const stylePrompt = document.getElementById('prompt').value.trim();
-  const fullPrompt  = buildPrompt(stylePrompt, S.budget, null);
+  const fullPrompt  = buildPrompt(stylePrompt, S.budget, exteriorMode);
   const total       = S.images.length;
 
   document.getElementById('form-wrap').style.display = 'none';
   document.getElementById('results').classList.remove('show');
-  document.getElementById('results-list').innerHTML = '';
+
+  // Seed the results list with placeholder cards immediately
+  // so users see all slots and know what's coming
+  const list = document.getElementById('results-list');
+  list.innerHTML = '';
+  S.images.forEach((imgUrl, i) => {
+    const card = document.createElement('div');
+    card.className = 'result-item';
+    card.id = `result-slot-${i}`;
+    card.innerHTML = `
+      ${total > 1 ? `<div class="result-label">Image ${i + 1} of ${total}</div>` : ''}
+      <div class="placeholder-card" id="placeholder-${i}">
+        <div class="ph-spinner"></div>
+        <div class="ph-text">Imagining the potential…</div>
+      </div>`;
+    list.appendChild(card);
+  });
+
+  document.getElementById('results-title').textContent =
+    total > 1 ? `Generating ${total} images…` : 'Imagining the potential…';
+  document.getElementById('results').classList.add('show');
   setLoading(true);
 
-  const pairs = [];
-
   for (let i = 0; i < total; i++) {
-    const imageUrl = S.images[i];
+    // Update the active placeholder
+    const ph = document.getElementById(`placeholder-${i}`);
+    if (ph) ph.querySelector('.ph-text').textContent = 'Working on this one…';
+
     document.getElementById('loading-title').textContent =
-      total > 1 ? `Imagining room ${i + 1} of ${total}…` : 'Imagining the potential…';
-    document.getElementById('loading-sub').textContent = 'Sending to OpenAI…';
+      total > 1 ? `Working on image ${i + 1} of ${total}…` : 'Imagining the potential…';
+    document.getElementById('loading-sub').textContent = 'This takes about 30–45 seconds.';
     document.querySelectorAll('.loading-step').forEach((el, j) => el.classList.toggle('active', j === 0));
 
+    const imageUrl = S.images[i];
     let step = 0;
     const stepTimer = setInterval(() => {
       step = Math.min(step + 1, 4);
@@ -1012,85 +1050,57 @@ async function generate() {
     }, 9000);
 
     try {
-      // For uploaded images (data URLs), convert to blob and send differently
-      let body;
-      if (imageUrl.startsWith('data:')) {
-        // Send base64 — worker will decode it
-        body = JSON.stringify({ action: 'generate', imageDataUrl: imageUrl, prompt: fullPrompt });
-      } else {
-        body = JSON.stringify({ action: 'generate', imageUrl, prompt: fullPrompt });
-      }
+      const body = imageUrl.startsWith('data:')
+        ? { action: 'generate', imageDataUrl: imageUrl, prompt: fullPrompt }
+        : { action: 'generate', imageUrl, prompt: fullPrompt };
 
       const r = await fetch(WORKER, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body,
+        body: JSON.stringify(body),
       });
       const data = await r.json();
       clearInterval(stepTimer);
 
       if (data.error) throw new Error(data.error + (data.details ? ': ' + data.details : ''));
-      if (!data.image) throw new Error('No image returned from worker');
+      if (!data.image) throw new Error('No image returned');
 
       S.lastAfterUrl = data.image;
-      pairs.push({ before: imageUrl, after: data.image, n: i + 1 });
-      showResults(pairs, total);
+      // Replace placeholder with actual before/after slider
+      fillResultSlot(i, imageUrl, data.image, total);
     } catch(e) {
       clearInterval(stepTimer);
-      console.error(`[gen] Room ${i + 1} failed:`, e);
-      pairs.push({ before: imageUrl, after: null, error: e.message, n: i + 1 });
-      showResults(pairs, total);
+      console.error(`[gen] Image ${i + 1} failed:`, e);
+      const ph = document.getElementById(`placeholder-${i}`);
+      if (ph) ph.innerHTML = `<div class="status err show" style="margin:0">⚠️ ${escHtml(e.message)}</div>`;
     }
   }
 
   setLoading(false);
+  document.getElementById('results-title').textContent =
+    total > 1 ? `${total} images generated` : 'Before & After';
 }
 
-// ═══════════════════════════════════════════════
-// RESULTS — multi-image
-// ═══════════════════════════════════════════════
-function showResults(pairs, total) {
-  const list = document.getElementById('results-list');
-  list.innerHTML = '';
-
-  pairs.forEach((p, idx) => {
-    const item = document.createElement('div');
-    item.className = 'result-item';
-
-    if (p.error) {
-      item.innerHTML = `<div class="result-label">Room ${p.n}</div>
-        <div class="status err show">⚠️ Failed: ${escHtml(p.error)}</div>`;
-    } else {
-      const id = `cmp-${idx}`;
-      item.innerHTML = `
-        ${total > 1 ? `<div class="result-label">Room ${p.n}${p.roomType ? ` — ${p.roomType}` : ''}</div>` : ''}
-        <div class="compare-wrap" id="${id}">
-          <img class="cmp-before" src="${p.before}" alt="Before" />
-          <div class="cmp-after-wrap" id="${id}-aw" style="clip-path:inset(0 50% 0 0)">
-            <img class="cmp-after" src="${p.after}" alt="After" />
-          </div>
-          <div class="cmp-line" style="left:50%"></div>
-          <div class="cmp-handle" style="left:50%">↔</div>
-          <span class="cmp-badge cmp-badge-before">Before</span>
-          <span class="cmp-badge cmp-badge-after">After</span>
-          <input type="range" min="0" max="100" value="50" class="cmp-range"
-            oninput="slideItem('${id}',this.value)" />
-        </div>`;
-    }
-    list.appendChild(item);
-  });
-
-  const done   = pairs.filter(p => !p.error).length;
-  const failed = pairs.filter(p => p.error).length;
-  const label  = total > 1
-    ? `${done} of ${total} rooms rendered${failed ? ` (${failed} failed)` : ''}`
-    : 'Before & After';
-  document.getElementById('results-title').textContent = label;
-
-  setLoading(false);
-  const el = document.getElementById('results');
-  el.classList.add('show');
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function fillResultSlot(i, before, after, total) {
+  const slot = document.getElementById(`result-slot-${i}`);
+  if (!slot) return;
+  const id = `cmp-${i}`;
+  const label = total > 1 ? `<div class="result-label">Image ${i + 1} of ${total}</div>` : '';
+  slot.innerHTML = `
+    ${label}
+    <div class="compare-wrap" id="${id}">
+      <img class="cmp-before" src="${before}" alt="Before" />
+      <div class="cmp-after-wrap" id="${id}-aw" style="clip-path:inset(0 50% 0 0)">
+        <img class="cmp-after" src="${after}" alt="After" />
+      </div>
+      <div class="cmp-line" style="left:50%"></div>
+      <div class="cmp-handle" style="left:50%">↔</div>
+      <span class="cmp-badge cmp-badge-before">Before</span>
+      <span class="cmp-badge cmp-badge-after">After</span>
+      <input type="range" min="0" max="100" value="50" class="cmp-range"
+        oninput="slideItem('${id}',this.value)" />
+    </div>`;
+  slot.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function slideItem(id, v) {
@@ -1156,6 +1166,9 @@ function resetAll() {
   document.getElementById('prompt-wrap').style.display = 'none';
   document.getElementById('budget-desc').textContent = '';
   document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  exteriorMode = false;
+  document.getElementById('mode-interior').classList.add('active');
+  document.getElementById('mode-exterior').classList.remove('active');
   document.getElementById('form-wrap').style.display = 'block';
   document.getElementById('gen-btn').disabled = false;
   S.images = []; S.budget = null; S.lastAfterUrl = null;
