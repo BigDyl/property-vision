@@ -916,7 +916,7 @@ function extractImgUrls(html) {
   const exclude = new Set();
 
   // ── 1. Rightmove __NEXT_DATA__ — best source when present
-  const nd = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  const nd = html.match(/<script[^>]*id=["']__NEXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/);
   if (nd) {
     dbg('  __NEXT_DATA__ found');
     try {
@@ -949,22 +949,34 @@ function extractImgUrls(html) {
     dbg('  __NEXT_DATA__ not found', 'debug-warn');
   }
 
-  // ── 2. Rightmove CDN regex — key insight: property photos have _IMG_ in URL,
-  //       floorplans have FLP. Filter accordingly. This is a reliable fallback.
+  // ── 2. Broader Rightmove CDN regex — catches both old (_IMG_) and new (property-photo) formats
   if (found.size === 0) {
-    dbg('  Trying Rightmove CDN regex (_IMG_ pattern)…');
+    dbg('  Trying Rightmove CDN regex (broad)…');
     let rmCount = 0;
-    for (const m of html.matchAll(/https:\/\/media\.rightmove\.co\.uk\/[^\s"'<>]+\.jpe?g/gi)) {
+    for (const m of html.matchAll(/https:\/\/media\.rightmove\.co\.uk\/[^\s"'<>\\]+\.jpe?g/gi)) {
       const u = m[0].split('?')[0];
-      // _IMG_ = property photo. FLP/floorplan = floor plan. Skip non-photos.
-      if (/_IMG_/i.test(u) && !/FLP|floorplan/i.test(u)) {
-        // Normalise to a large size
-        const normalised = u.replace(/_max_\d+x\d+/,'_max_800x600');
-        found.add(normalised);
+      if (!/FLP|floorplan|logo|agent|branch/i.test(u)) {
+        found.add(u);
         rmCount++;
       }
     }
-    dbg(`  Rightmove CDN regex: ${rmCount} photos`, rmCount ? 'debug-ok' : 'debug-warn');
+    dbg(`  Rightmove CDN broad: ${rmCount} URLs`, rmCount ? 'debug-ok' : 'debug-warn');
+  }
+
+  // ── 3. Search ALL script tags for JSON containing image arrays
+  //    (App Router / RSC pages don't use __NEXT_DATA__ — data is split across script tags)
+  if (found.size === 0) {
+    dbg('  Searching script tags for image JSON…');
+    let jsonCount = 0;
+    for (const m of html.matchAll(/<script[^>]*>([\s\S]{20,}?)<\/script>/gi)) {
+      const content = m[1];
+      // Look for anything that looks like an array of image URL strings
+      for (const imgM of content.matchAll(/["'](https:\/\/media\.rightmove\.co\.uk\/[^"'\\]+\.jpe?g)["']/gi)) {
+        const u = imgM[1].split('?')[0];
+        if (!/FLP|floorplan/i.test(u)) { found.add(u); jsonCount++; }
+      }
+    }
+    dbg(`  Script tag JSON scan: ${jsonCount} URLs`, jsonCount ? 'debug-ok' : 'debug-warn');
   }
 
   // ── 3. Zoopla JSON-LD
